@@ -503,70 +503,73 @@
 
     .orbital-instrument {
       --meteor-x: calc(var(--site-progress, 0) * 100%);
-      --meteor-rgb: 126, 210, 255;
-      --meteor-warm-rgb: 255, 209, 138;
-      --meteor-quiet-rgb: 82, 142, 255;
-      --meteor-energy: .78;
+      --meteor-rgb: 188, 232, 255;
+      --meteor-warm-rgb: 255, 208, 148;
+      --meteor-quiet-rgb: 88, 148, 255;
+      --meteor-energy: .64;
       --meteor-velocity: 0;
-      --meteor-flare: .28;
+      --meteor-flare: .20;
       --meteor-stretch: 1;
       --meteor-lift: 0px;
-      --meteor-label-opacity: .88;
-      --meteor-wake-length: clamp(150px, calc(210px + var(--meteor-velocity, 0) * 520px), 820px);
-      --meteor-wake-height: calc(14px + var(--meteor-velocity, 0) * 42px);
-      --meteor-ray-opacity: calc(.08 + var(--meteor-velocity, 0) * .26);
+      --meteor-depth: calc(.74 + var(--meteor-velocity, 0) * .34);
+      --meteor-label-opacity: .34;
+      --meteor-wake-length: clamp(180px, calc(255px + var(--meteor-velocity, 0) * 360px), 620px);
+      --meteor-wake-height: calc(8px + var(--meteor-velocity, 0) * 16px);
+      --meteor-ray-opacity: calc(.045 + var(--meteor-velocity, 0) * .16);
       position: fixed;
       z-index: 18;
       left: 50%;
-      bottom: max(58px, env(safe-area-inset-bottom));
-      width: min(1520px, calc(100vw - 180px));
-      min-height: 178px;
+      bottom: max(50px, env(safe-area-inset-bottom));
+      width: min(1500px, calc(100vw - 190px));
+      min-height: 168px;
       display: grid;
-      grid-template-columns: minmax(168px, .72fr) minmax(760px, 3.6fr) minmax(184px, .72fr);
+      grid-template-columns: minmax(148px, .58fr) minmax(760px, 3.9fr) minmax(164px, .58fr);
       align-items: center;
-      gap: 26px;
+      gap: 22px;
       padding: 0;
       pointer-events: none;
       transform: translateX(-50%);
-      filter: drop-shadow(0 34px 82px rgba(0, 0, 0, .52));
+      filter: drop-shadow(0 34px 88px rgba(0, 0, 0, .56));
     }
 
     .orbital-instrument::before {
       content: "";
       position: absolute;
-      left: 4%;
-      right: 4%;
-      top: 51%;
-      height: 156px;
-      border-top: 1px solid rgba(var(--meteor-rgb), .18);
-      border-radius: 50%;
-      transform: translateY(-50%);
-      opacity: .82;
-      filter: blur(.12px);
-      -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
-      mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+      left: 5%;
+      right: 5%;
+      top: 48%;
+      height: 190px;
+      border-radius: 999px;
+      background:
+        radial-gradient(ellipse at calc(var(--site-progress, 0) * 100%) 47%, rgba(var(--meteor-rgb), .135), transparent 42%),
+        radial-gradient(ellipse at calc(var(--site-progress, 0) * 100%) 55%, rgba(var(--meteor-warm-rgb), .045), transparent 36%),
+        linear-gradient(105deg, transparent 0 20%, rgba(var(--meteor-rgb), .034) 45%, transparent 72% 100%);
+      transform: translateY(-50%) rotate(-5deg);
+      opacity: calc(.30 + var(--meteor-ray-opacity, .05));
+      filter: blur(calc(22px + var(--meteor-velocity, 0) * 12px));
+      -webkit-mask-image: radial-gradient(ellipse at calc(var(--site-progress, 0) * 100%) 50%, #000 0 30%, rgba(0,0,0,.42) 50%, transparent 76%);
+      mask-image: radial-gradient(ellipse at calc(var(--site-progress, 0) * 100%) 50%, #000 0 30%, rgba(0,0,0,.42) 50%, transparent 76%);
+      transition: opacity .42s ease, filter .32s ease, transform .32s ease;
     }
 
     .orbital-instrument::after {
       content: "";
       position: absolute;
       left: 50%;
-      bottom: -38px;
-      width: 88%;
-      height: 150px;
+      bottom: -46px;
+      width: 92%;
+      height: 170px;
       border-radius: 999px;
       background:
-        linear-gradient(105deg,
+        linear-gradient(106deg,
           transparent 0%,
-          rgba(var(--meteor-rgb), .08) calc(var(--site-progress) * 100% - 18%),
-          rgba(255,255,255,.18) calc(var(--site-progress) * 100%),
-          rgba(var(--meteor-warm-rgb), .09) calc(var(--site-progress) * 100% + 10%),
-          transparent 100%),
-        radial-gradient(ellipse at calc(var(--site-progress) * 100%) 50%, rgba(var(--meteor-rgb), .18), transparent 58%),
-        radial-gradient(ellipse at calc(var(--site-progress) * 100%) 54%, rgba(var(--meteor-warm-rgb), .09), transparent 54%);
-      transform: translateX(-50%) translateY(var(--meteor-lift, 0px)) skewX(-8deg);
-      opacity: calc(.34 + var(--meteor-ray-opacity, .10));
-      filter: blur(calc(20px + var(--meteor-velocity, 0) * 18px));
+          rgba(var(--meteor-rgb), .028) calc(var(--site-progress) * 100% - 28%),
+          rgba(226,247,255,.105) calc(var(--site-progress) * 100% - 4%),
+          rgba(var(--meteor-warm-rgb), .034) calc(var(--site-progress) * 100% + 8%),
+          transparent 100%);
+      transform: translateX(-50%) translateY(var(--meteor-lift, 0px)) skewX(-12deg) rotate(-2deg);
+      opacity: calc(.18 + var(--meteor-ray-opacity, .05));
+      filter: blur(calc(24px + var(--meteor-velocity, 0) * 15px));
       z-index: -1;
       transition: opacity .45s ease, filter .28s ease, transform .28s ease;
     }
@@ -575,15 +578,15 @@
     .instrument-status {
       position: relative;
       z-index: 5;
-      color: rgba(236, 242, 250, calc(.58 + var(--meteor-label-opacity, .88) * .24));
-      font-size: 13px;
-      font-weight: 620;
-      letter-spacing: calc(.13em + (1 - var(--meteor-velocity, 0)) * .08em);
+      color: rgba(232, 243, 255, calc(.34 + var(--meteor-label-opacity, .46) * .24));
+      font-size: 11px;
+      font-weight: 610;
+      letter-spacing: calc(.18em + (1 - var(--meteor-velocity, 0)) * .05em);
       line-height: 1;
       text-transform: uppercase;
       white-space: nowrap;
       text-shadow:
-        0 0 14px rgba(var(--meteor-rgb), .18),
+        0 0 16px rgba(var(--meteor-rgb), .13),
         0 2px 24px rgba(0, 0, 0, .92);
     }
 
@@ -592,28 +595,28 @@
       content: "";
       position: absolute;
       top: 50%;
-      width: 58px;
+      width: 34px;
       height: 1px;
-      background: linear-gradient(90deg, rgba(var(--meteor-rgb), .42), transparent);
+      background: linear-gradient(90deg, rgba(var(--meteor-rgb), .18), transparent);
       transform: translateY(-50%);
-      opacity: .72;
+      opacity: .38;
     }
 
-    .instrument-word::after { left: calc(100% + 14px); }
-    .instrument-status::before { right: calc(100% + 14px); transform: translateY(-50%) rotate(180deg); }
+    .instrument-word::after { left: calc(100% + 12px); }
+    .instrument-status::before { right: calc(100% + 12px); transform: translateY(-50%) rotate(180deg); }
 
     .instrument-status {
       text-align: right;
-      color: rgba(255, 234, 204, calc(.60 + var(--meteor-label-opacity, .88) * .25));
+      color: rgba(255, 230, 196, calc(.32 + var(--meteor-label-opacity, .46) * .22));
       text-shadow:
-        0 0 14px rgba(var(--meteor-warm-rgb), .20),
+        0 0 14px rgba(var(--meteor-warm-rgb), .10),
         0 2px 24px rgba(0, 0, 0, .92);
     }
 
     .instrument-orbit {
       position: relative;
       z-index: 2;
-      height: 108px;
+      height: 116px;
       border-radius: 999px;
       overflow: visible;
       isolation: isolate;
@@ -625,36 +628,38 @@
       content: "";
       position: absolute;
       left: var(--meteor-x);
-      top: 50%;
+      top: 48%;
       width: var(--meteor-wake-length);
-      min-width: 120px;
+      min-width: 150px;
       height: var(--meteor-wake-height);
       border-radius: 999px;
       background:
-        radial-gradient(ellipse at 100% 50%, rgba(255,255,255,.92) 0 5%, rgba(var(--meteor-warm-rgb), .72) 8% 18%, transparent 30%),
+        radial-gradient(ellipse at 100% 50%, rgba(255,255,255,.72) 0 4%, rgba(var(--meteor-rgb), .46) 8% 19%, transparent 34%),
         linear-gradient(90deg,
           rgba(var(--meteor-quiet-rgb), 0) 0%,
-          rgba(var(--meteor-quiet-rgb), .05) 22%,
-          rgba(var(--meteor-rgb), .16) 50%,
-          rgba(226, 247, 255, .48) 78%,
-          rgba(var(--meteor-warm-rgb), .70) 100%);
+          rgba(var(--meteor-quiet-rgb), .025) 22%,
+          rgba(var(--meteor-rgb), .075) 50%,
+          rgba(226, 247, 255, .25) 82%,
+          rgba(var(--meteor-warm-rgb), .16) 100%);
       box-shadow:
-        0 0 calc(16px + var(--meteor-velocity, 0) * 22px) rgba(var(--meteor-rgb), .32),
-        0 0 calc(44px + var(--meteor-velocity, 0) * 58px) rgba(var(--meteor-rgb), .18),
-        0 0 calc(70px + var(--meteor-velocity, 0) * 72px) rgba(var(--meteor-warm-rgb), .12);
-      filter: saturate(calc(106% + var(--meteor-velocity, 0) * 50%)) blur(calc(.06px + var(--meteor-velocity, 0) * .42px));
+        0 0 calc(14px + var(--meteor-velocity, 0) * 16px) rgba(var(--meteor-rgb), .20),
+        0 0 calc(42px + var(--meteor-velocity, 0) * 34px) rgba(var(--meteor-rgb), .11),
+        0 0 calc(80px + var(--meteor-velocity, 0) * 42px) rgba(var(--meteor-warm-rgb), .045);
+      filter: saturate(calc(96% + var(--meteor-velocity, 0) * 24%)) blur(calc(.26px + var(--meteor-velocity, 0) * .36px));
       transform:
-        translate3d(calc(-100% - 15px), calc(-50% + var(--meteor-lift, 0px)), 0)
-        scaleX(var(--meteor-stretch, 1));
+        translate3d(calc(-100% - 18px), calc(-50% + var(--meteor-lift, 0px)), 0)
+        rotate(-7deg)
+        scaleX(var(--meteor-stretch, 1))
+        scaleY(var(--meteor-depth, 1));
       transform-origin: right center;
       -webkit-mask-image:
-        linear-gradient(90deg, transparent 0%, rgba(0,0,0,.12) 18%, rgba(0,0,0,.72) 58%, #000 100%),
-        repeating-linear-gradient(90deg, #000 0 18px, rgba(0,0,0,.62) 20px 24px, #000 30px 42px);
+        linear-gradient(90deg, transparent 0%, rgba(0,0,0,.06) 15%, rgba(0,0,0,.48) 58%, #000 100%),
+        repeating-linear-gradient(90deg, #000 0 26px, rgba(0,0,0,.42) 30px 37px, #000 46px 64px);
       mask-image:
-        linear-gradient(90deg, transparent 0%, rgba(0,0,0,.12) 18%, rgba(0,0,0,.72) 58%, #000 100%),
-        repeating-linear-gradient(90deg, #000 0 18px, rgba(0,0,0,.62) 20px 24px, #000 30px 42px);
-      opacity: calc(.34 + var(--meteor-flare, .28) * .38);
-      animation: meteor-tail-breathe 4.8s ease-in-out infinite;
+        linear-gradient(90deg, transparent 0%, rgba(0,0,0,.06) 15%, rgba(0,0,0,.48) 58%, #000 100%),
+        repeating-linear-gradient(90deg, #000 0 26px, rgba(0,0,0,.42) 30px 37px, #000 46px 64px);
+      opacity: calc(.23 + var(--meteor-flare, .20) * .24);
+      animation: meteor-tail-breathe 6.6s ease-in-out infinite;
       transition: width 260ms cubic-bezier(.16, 1, .3, 1), height 260ms cubic-bezier(.16, 1, .3, 1), filter 220ms ease, opacity 220ms ease;
     }
 
@@ -662,29 +667,30 @@
       content: "";
       position: absolute;
       left: var(--meteor-x);
-      top: 50%;
-      width: 44px;
-      height: 44px;
+      top: 48%;
+      width: 26px;
+      height: 26px;
       border-radius: 999px;
       background:
-        radial-gradient(circle at 62% 38%, rgba(255, 244, 205, 1) 0 10%, rgba(255, 255, 255, 1) 11% 33%, rgba(var(--meteor-rgb), .98) 34% 62%, rgba(var(--meteor-quiet-rgb), .36) 63% 100%);
+        radial-gradient(circle at 58% 40%, rgba(255, 255, 255, .92) 0 12%, rgba(211, 243, 255, .74) 18% 44%, rgba(var(--meteor-rgb), .32) 45% 70%, transparent 72% 100%);
       box-shadow:
-        0 0 10px rgba(255, 255, 255, .84),
-        0 0 calc(22px + var(--meteor-velocity, 0) * 22px) rgba(var(--meteor-rgb), .62),
-        0 0 calc(54px + var(--meteor-velocity, 0) * 48px) rgba(var(--meteor-rgb), .30),
-        0 0 calc(78px + var(--meteor-velocity, 0) * 58px) rgba(var(--meteor-warm-rgb), .20);
-      filter: brightness(calc(.92 + var(--meteor-velocity, 0) * .18)) saturate(calc(112% + var(--meteor-velocity, 0) * 44%));
+        0 0 8px rgba(255, 255, 255, .46),
+        0 0 calc(18px + var(--meteor-velocity, 0) * 18px) rgba(var(--meteor-rgb), .35),
+        0 0 calc(50px + var(--meteor-velocity, 0) * 28px) rgba(var(--meteor-rgb), .16),
+        0 0 calc(68px + var(--meteor-velocity, 0) * 30px) rgba(var(--meteor-warm-rgb), .055);
+      filter: brightness(calc(.86 + var(--meteor-velocity, 0) * .10)) saturate(calc(98% + var(--meteor-velocity, 0) * 18%));
       transform:
         translate(-50%, calc(-50% + var(--meteor-lift, 0px)))
-        scale(calc(.92 + var(--meteor-velocity, 0) * .22));
+        rotate(-7deg)
+        scale(calc(.70 + var(--meteor-velocity, 0) * .16));
       z-index: 6;
-      animation: meteor-core-pulse 3.4s ease-in-out infinite;
+      animation: meteor-core-pulse 4.8s ease-in-out infinite;
       transition: filter 180ms ease, box-shadow 220ms ease;
     }
 
     .instrument-orbit span {
       position: absolute;
-      inset: -4px -10px;
+      inset: -6px -10px;
       border-radius: inherit;
       pointer-events: none;
       mix-blend-mode: screen;
@@ -693,87 +699,92 @@
     .instrument-orbit span::before {
       content: "";
       position: absolute;
-      left: -2%;
-      right: -2%;
-      top: 50%;
-      height: 2px;
+      left: -6%;
+      right: -6%;
+      top: 49%;
+      height: 92px;
       background:
-        linear-gradient(90deg, transparent, rgba(var(--meteor-rgb), .32), rgba(var(--meteor-warm-rgb), .18), transparent),
-        linear-gradient(90deg, transparent 0 5%, rgba(255,255,255,.50) 5.4% 5.7%, transparent 6.2% 100%);
-      background-size: 100% 100%, 220px 100%;
-      box-shadow:
-        0 0 18px rgba(var(--meteor-rgb), .28),
-        0 0 54px rgba(var(--meteor-rgb), .14);
-      transform: translateY(-50%);
-      opacity: .88;
-      animation: meteor-star-drift 13s linear infinite;
+        linear-gradient(101deg, transparent 0 24%, rgba(var(--meteor-rgb), .045) 44%, transparent 61% 100%),
+        linear-gradient(106deg, transparent 0 35%, rgba(255,255,255,.052) 47%, rgba(var(--meteor-rgb), .030) 55%, transparent 68% 100%),
+        linear-gradient(112deg, transparent 0 48%, rgba(var(--meteor-warm-rgb), .032) 54%, transparent 66% 100%);
+      filter: blur(8px);
+      transform: translateY(calc(-50% + var(--meteor-lift, 0px))) rotate(-5deg);
+      opacity: calc(.12 + var(--meteor-ray-opacity, .045));
+      -webkit-mask-image: radial-gradient(ellipse at calc(var(--site-progress, 0) * 100%) 50%, #000 0 34%, rgba(0,0,0,.36) 58%, transparent 78%);
+      mask-image: radial-gradient(ellipse at calc(var(--site-progress, 0) * 100%) 50%, #000 0 34%, rgba(0,0,0,.36) 58%, transparent 78%);
+      animation: meteor-star-drift 18s linear infinite;
     }
 
     .instrument-orbit span::after {
       content: "";
       position: absolute;
-      inset: -2px -6px;
+      inset: -14px -24px;
       border-radius: inherit;
-      opacity: calc(.42 + var(--meteor-flare, .28) * .40);
+      opacity: calc(.18 + var(--meteor-flare, .20) * .20);
       background:
-        radial-gradient(circle at 4% 56%, rgba(255,255,255,.30) 0 1px, transparent 1.7px),
-        radial-gradient(circle at 12% 34%, rgba(var(--meteor-rgb),.30) 0 1.2px, transparent 2px),
-        radial-gradient(circle at 22% 72%, rgba(var(--meteor-warm-rgb),.22) 0 1.4px, transparent 2.2px),
-        radial-gradient(circle at 36% 42%, rgba(255,255,255,.24) 0 1.1px, transparent 1.9px),
-        radial-gradient(circle at 49% 66%, rgba(var(--meteor-rgb),.25) 0 1.3px, transparent 2.2px),
-        radial-gradient(circle at 63% 31%, rgba(var(--meteor-warm-rgb),.20) 0 1px, transparent 1.8px),
-        radial-gradient(circle at 78% 58%, rgba(255,255,255,.20) 0 1.1px, transparent 1.9px),
-        radial-gradient(circle at 94% 46%, rgba(var(--meteor-rgb),.22) 0 1.1px, transparent 1.9px);
-      filter: drop-shadow(0 0 8px rgba(var(--meteor-rgb), .30));
-      animation: meteor-dust-breathe 7.5s ease-in-out infinite;
+        radial-gradient(circle at calc(var(--site-progress, 0) * 100% - 28%) 48%, rgba(255,255,255,.20) 0 1px, transparent 1.7px),
+        radial-gradient(circle at calc(var(--site-progress, 0) * 100% - 18%) 61%, rgba(var(--meteor-rgb),.18) 0 1.2px, transparent 2px),
+        radial-gradient(circle at calc(var(--site-progress, 0) * 100% - 7%) 36%, rgba(var(--meteor-warm-rgb),.12) 0 1.4px, transparent 2.2px),
+        radial-gradient(circle at calc(var(--site-progress, 0) * 100% + 6%) 66%, rgba(255,255,255,.13) 0 1.1px, transparent 1.9px),
+        radial-gradient(circle at calc(var(--site-progress, 0) * 100% + 17%) 42%, rgba(var(--meteor-rgb),.14) 0 1.3px, transparent 2.2px),
+        radial-gradient(circle at 18% 63%, rgba(255,255,255,.07) 0 1px, transparent 1.8px),
+        radial-gradient(circle at 82% 37%, rgba(var(--meteor-rgb),.08) 0 1.1px, transparent 1.9px);
+      filter: drop-shadow(0 0 8px rgba(var(--meteor-rgb), .17));
+      transform: translateY(var(--meteor-lift, 0px)) rotate(-4deg);
+      animation: meteor-dust-breathe 9.5s ease-in-out infinite;
     }
 
     @keyframes meteor-core-pulse {
       0%, 100% {
-        transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(calc(.90 + var(--meteor-velocity, 0) * .18));
-        opacity: .88;
+        transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) rotate(-7deg) scale(calc(.68 + var(--meteor-velocity, 0) * .12));
+        opacity: .62;
       }
-      48% {
-        transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(calc(.98 + var(--meteor-velocity, 0) * .25));
-        opacity: 1;
+      52% {
+        transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) rotate(-7deg) scale(calc(.76 + var(--meteor-velocity, 0) * .16));
+        opacity: .82;
       }
     }
 
     .orbital-instrument[data-phase-pulse="1"] .instrument-orbit::after {
-      animation: phase-core-flare 720ms cubic-bezier(.16, 1, .3, 1) both;
+      animation: phase-core-flare 760ms cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .orbital-instrument[data-motion-state="accelerating"] {
+      --meteor-label-opacity: .32;
     }
 
     .orbital-instrument[data-motion-state="accelerating"] .instrument-orbit::before {
-      opacity: .86;
-      filter: saturate(172%) blur(.22px);
+      opacity: .58;
+      filter: saturate(132%) blur(.34px);
     }
 
     .orbital-instrument[data-arrival="1"] {
-      --meteor-wake-length: clamp(92px, 12vw, 190px);
-      --meteor-wake-height: 18px;
-      --meteor-stretch: .88;
-      --meteor-ray-opacity: .16;
+      --meteor-wake-length: clamp(130px, 18vw, 260px);
+      --meteor-wake-height: 10px;
+      --meteor-stretch: .72;
+      --meteor-ray-opacity: .08;
+      --meteor-label-opacity: .38;
     }
 
     @keyframes phase-core-flare {
-      0% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(.92); filter: brightness(1) saturate(120%); }
-      34% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(1.22); filter: brightness(1.18) saturate(168%); }
-      100% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(calc(.94 + var(--meteor-velocity, 0) * .18)); filter: brightness(1) saturate(122%); }
+      0% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) rotate(-7deg) scale(.66); filter: brightness(.92) saturate(104%); }
+      34% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) rotate(-7deg) scale(1.04); filter: brightness(1.08) saturate(126%); }
+      100% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) rotate(-7deg) scale(calc(.72 + var(--meteor-velocity, 0) * .12)); filter: brightness(.96) saturate(108%); }
     }
 
     @keyframes meteor-tail-breathe {
-      0%, 100% { opacity: calc(.48 + var(--meteor-flare, .28) * .20); }
-      52% { opacity: calc(.58 + var(--meteor-flare, .28) * .30); }
+      0%, 100% { opacity: calc(.20 + var(--meteor-flare, .20) * .18); }
+      52% { opacity: calc(.30 + var(--meteor-flare, .20) * .22); }
     }
 
     @keyframes meteor-star-drift {
-      from { background-position: 0 0, 0 0; }
-      to { background-position: 0 0, 220px 0; }
+      from { background-position: 0 0, 0 0, 0 0; }
+      to { background-position: 120px 0, 220px 0, 340px 0; }
     }
 
     @keyframes meteor-dust-breathe {
-      0%, 100% { opacity: .68; transform: translateY(0) scaleY(.96); }
-      50% { opacity: 1; transform: translateY(-1px) scaleY(1.05); }
+      0%, 100% { opacity: calc(.15 + var(--meteor-flare, .20) * .15); transform: translateY(var(--meteor-lift, 0px)) rotate(-4deg) scaleY(.96); }
+      50% { opacity: calc(.25 + var(--meteor-flare, .20) * .20); transform: translateY(calc(var(--meteor-lift, 0px) - 1px)) rotate(-4deg) scaleY(1.04); }
     }
 
     ::-webkit-scrollbar { width: 8px; }
@@ -2139,10 +2150,11 @@
         orbitalInstrument.style.setProperty('--meteor-energy', palette[3]);
         const velocity = reduceMotion ? 0 : clamp(state.meteorVelocity || 0, 0, 1);
         orbitalInstrument.style.setProperty('--meteor-velocity', velocity.toFixed(3));
-        orbitalInstrument.style.setProperty('--meteor-flare', (0.24 + velocity * 0.70).toFixed(3));
-        orbitalInstrument.style.setProperty('--meteor-stretch', (1 + velocity * 0.82).toFixed(3));
-        orbitalInstrument.style.setProperty('--meteor-lift', `${(-velocity * (isMobile ? 2.2 : 5.5)).toFixed(2)}px`);
-        orbitalInstrument.style.setProperty('--meteor-label-opacity', (0.92 - velocity * 0.24).toFixed(3));
+        orbitalInstrument.style.setProperty('--meteor-flare', (0.18 + velocity * 0.38).toFixed(3));
+        orbitalInstrument.style.setProperty('--meteor-stretch', (0.88 + velocity * 0.46).toFixed(3));
+        orbitalInstrument.style.setProperty('--meteor-lift', `${(-velocity * (isMobile ? 1.4 : 4.2)).toFixed(2)}px`);
+        orbitalInstrument.style.setProperty('--meteor-label-opacity', (0.38 - velocity * 0.16).toFixed(3));
+        orbitalInstrument.dataset.motionLanguage = 'cinematic-light-wake-v1';
         orbitalInstrument.dataset.motionState = velocity < 0.045 ? 'idle-orbit' : (velocity > 0.24 ? 'accelerating' : 'coasting');
         orbitalInstrument.dataset.arrival = progress > .985 ? '1' : '0';
         if (state.lastBeatId && state.lastBeatId !== beat.id) {
@@ -2519,11 +2531,12 @@
         siteSections: 5,
         routeArcsVisible: false,
         visualTexturePass: 'jake-visible-effects-v1',
-        sceneInstrument: 'orbital-progress-device-v1',
+        sceneInstrument: 'cinematic-light-wake-v1',
+        motionLanguage: orbitalInstrument?.dataset.motionLanguage || 'cinematic-light-wake-v1',
         backgroundRealismPass: 'light-depth-v1',
         lightingRigVersion: 'solar-contrast-v1',
         spaceBackdropVersion: 'deep-field-arrival-v4-art-locked',
-        animationWorkflow: 'react-bits-inspired-velocity-wake-v2-progress-delta',
+        animationWorkflow: 'cinematic-light-wake-a-optimized-v1',
         clawTeamReviewApplied: 'orbital-art-20260628-141516',
         toneMappingExposure: renderer.toneMappingExposure,
         fogDensity: Number(scene.fog.density.toFixed(5)),
@@ -2571,9 +2584,10 @@
       siteSections: 5,
       routeArcsVisible: false,
       visualTexturePass: 'jake-visible-effects-v1',
-      sceneInstrument: 'orbital-progress-device-v1',
+      sceneInstrument: 'cinematic-light-wake-v1',
+      motionLanguage: 'cinematic-light-wake-v1',
       spaceBackdropVersion: 'deep-field-arrival-v4-art-locked',
-      animationWorkflow: 'cinematic-galaxy-arrival-v2',
+      animationWorkflow: 'cinematic-light-wake-a-optimized-v1',
       reducedMotion: reduceMotion,
       noCards: true,
       noSelector: true
