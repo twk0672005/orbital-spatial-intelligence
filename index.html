@@ -3,8 +3,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
-  <title>ORBITAL | Spatial intelligence for mission-scale environments</title>
-  <meta name="description" content="ORBITAL turns complex spatial data into cinematic command experiences for teams operating across Earth, orbit, and critical infrastructure.">
+  <title>ORBITAL | From Earth into deep space</title>
+  <meta name="description" content="An interactive WebGL journey from Earth through orbit, planetary scale, and deep space.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2301030a'/%3E%3Ccircle cx='32' cy='32' r='18' fill='%234b8fff'/%3E%3Ccircle cx='25' cy='25' r='20' fill='none' stroke='%2388d8ff' stroke-width='4'/%3E%3C/svg%3E">
   <style>
     :root {
@@ -428,7 +428,7 @@
     }
 
     .signature-line {
-      display: flex;
+      display: none;
       flex-wrap: wrap;
       justify-content: center;
       gap: 18px;
@@ -448,7 +448,7 @@
     .signature-line span + span { border-left: 0; }
 
     .proof-rail {
-      display: grid;
+      display: none;
       grid-template-columns: repeat(3, auto);
       justify-content: center;
       gap: 16px;
@@ -489,6 +489,7 @@
       height: 1px;
       background: rgba(204, 226, 255, .13);
       pointer-events: none;
+      display: none;
     }
 
     .phase-rail::before {
@@ -501,96 +502,278 @@
     }
 
     .orbital-instrument {
+      --meteor-x: calc(var(--site-progress, 0) * 100%);
+      --meteor-rgb: 126, 210, 255;
+      --meteor-warm-rgb: 255, 209, 138;
+      --meteor-quiet-rgb: 82, 142, 255;
+      --meteor-energy: .78;
+      --meteor-velocity: 0;
+      --meteor-flare: .28;
+      --meteor-stretch: 1;
+      --meteor-lift: 0px;
+      --meteor-label-opacity: .88;
+      --meteor-wake-length: clamp(150px, calc(210px + var(--meteor-velocity, 0) * 520px), 820px);
+      --meteor-wake-height: calc(14px + var(--meteor-velocity, 0) * 42px);
+      --meteor-ray-opacity: calc(.08 + var(--meteor-velocity, 0) * .26);
       position: fixed;
       z-index: 18;
       left: 50%;
-      bottom: max(28px, env(safe-area-inset-bottom));
-      width: min(580px, calc(100vw - 116px));
-      min-height: 50px;
+      bottom: max(58px, env(safe-area-inset-bottom));
+      width: min(1520px, calc(100vw - 180px));
+      min-height: 178px;
       display: grid;
-      grid-template-columns: minmax(72px, .78fr) minmax(160px, 1.8fr) minmax(78px, .82fr);
+      grid-template-columns: minmax(168px, .72fr) minmax(760px, 3.6fr) minmax(184px, .72fr);
       align-items: center;
-      gap: 16px;
-      padding: 10px 16px;
-      border: 1px solid rgba(203, 229, 255, .16);
-      border-radius: 999px;
-      background: linear-gradient(180deg, rgba(7, 13, 28, .52), rgba(2, 5, 14, .36));
-      box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, .10),
-        inset 0 -1px 0 rgba(119, 181, 255, .08),
-        0 28px 90px rgba(0, 0, 0, .34),
-        0 0 80px rgba(99, 171, 255, .08);
-      backdrop-filter: blur(26px) saturate(145%);
-      -webkit-backdrop-filter: blur(26px) saturate(145%);
+      gap: 26px;
+      padding: 0;
       pointer-events: none;
       transform: translateX(-50%);
+      filter: drop-shadow(0 34px 82px rgba(0, 0, 0, .52));
     }
 
     .orbital-instrument::before {
       content: "";
       position: absolute;
-      inset: -26px 8% auto;
-      height: 48px;
-      border-top: 1px solid rgba(144, 207, 255, .16);
+      left: 4%;
+      right: 4%;
+      top: 51%;
+      height: 156px;
+      border-top: 1px solid rgba(var(--meteor-rgb), .18);
       border-radius: 50%;
-      filter: blur(.2px);
-      opacity: .9;
+      transform: translateY(-50%);
+      opacity: .82;
+      filter: blur(.12px);
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+      mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+    }
+
+    .orbital-instrument::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -38px;
+      width: 88%;
+      height: 150px;
+      border-radius: 999px;
+      background:
+        linear-gradient(105deg,
+          transparent 0%,
+          rgba(var(--meteor-rgb), .08) calc(var(--site-progress) * 100% - 18%),
+          rgba(255,255,255,.18) calc(var(--site-progress) * 100%),
+          rgba(var(--meteor-warm-rgb), .09) calc(var(--site-progress) * 100% + 10%),
+          transparent 100%),
+        radial-gradient(ellipse at calc(var(--site-progress) * 100%) 50%, rgba(var(--meteor-rgb), .18), transparent 58%),
+        radial-gradient(ellipse at calc(var(--site-progress) * 100%) 54%, rgba(var(--meteor-warm-rgb), .09), transparent 54%);
+      transform: translateX(-50%) translateY(var(--meteor-lift, 0px)) skewX(-8deg);
+      opacity: calc(.34 + var(--meteor-ray-opacity, .10));
+      filter: blur(calc(20px + var(--meteor-velocity, 0) * 18px));
+      z-index: -1;
+      transition: opacity .45s ease, filter .28s ease, transform .28s ease;
     }
 
     .instrument-word,
     .instrument-status {
-      color: rgba(220, 237, 255, .62);
-      font-size: 10px;
-      font-weight: 720;
-      letter-spacing: .16em;
+      position: relative;
+      z-index: 5;
+      color: rgba(236, 242, 250, calc(.58 + var(--meteor-label-opacity, .88) * .24));
+      font-size: 13px;
+      font-weight: 620;
+      letter-spacing: calc(.13em + (1 - var(--meteor-velocity, 0)) * .08em);
+      line-height: 1;
       text-transform: uppercase;
       white-space: nowrap;
+      text-shadow:
+        0 0 14px rgba(var(--meteor-rgb), .18),
+        0 2px 24px rgba(0, 0, 0, .92);
     }
 
-    .instrument-status { text-align: right; color: rgba(255, 226, 178, .68); }
+    .instrument-word::after,
+    .instrument-status::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 58px;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(var(--meteor-rgb), .42), transparent);
+      transform: translateY(-50%);
+      opacity: .72;
+    }
+
+    .instrument-word::after { left: calc(100% + 14px); }
+    .instrument-status::before { right: calc(100% + 14px); transform: translateY(-50%) rotate(180deg); }
+
+    .instrument-status {
+      text-align: right;
+      color: rgba(255, 234, 204, calc(.60 + var(--meteor-label-opacity, .88) * .25));
+      text-shadow:
+        0 0 14px rgba(var(--meteor-warm-rgb), .20),
+        0 2px 24px rgba(0, 0, 0, .92);
+    }
 
     .instrument-orbit {
       position: relative;
-      height: 18px;
+      z-index: 2;
+      height: 108px;
       border-radius: 999px;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at calc(var(--site-progress, 0) * 100%) 50%, rgba(255, 235, 194, .34), transparent 13px),
-        linear-gradient(90deg, rgba(198, 223, 255, .08), rgba(198, 223, 255, .04));
+      overflow: visible;
+      isolation: isolate;
+      background: transparent;
+      transform: translateZ(0);
     }
 
     .instrument-orbit::before {
       content: "";
       position: absolute;
-      left: 0;
+      left: var(--meteor-x);
       top: 50%;
-      width: calc(var(--site-progress, 0) * 100%);
-      height: 1px;
-      background: linear-gradient(90deg, rgba(120, 185, 255, .18), rgba(232, 245, 255, .88), rgba(255, 210, 148, .70));
-      box-shadow: 0 0 22px rgba(137, 202, 255, .42);
-      transform: translateY(-50%);
+      width: var(--meteor-wake-length);
+      min-width: 120px;
+      height: var(--meteor-wake-height);
+      border-radius: 999px;
+      background:
+        radial-gradient(ellipse at 100% 50%, rgba(255,255,255,.92) 0 5%, rgba(var(--meteor-warm-rgb), .72) 8% 18%, transparent 30%),
+        linear-gradient(90deg,
+          rgba(var(--meteor-quiet-rgb), 0) 0%,
+          rgba(var(--meteor-quiet-rgb), .05) 22%,
+          rgba(var(--meteor-rgb), .16) 50%,
+          rgba(226, 247, 255, .48) 78%,
+          rgba(var(--meteor-warm-rgb), .70) 100%);
+      box-shadow:
+        0 0 calc(16px + var(--meteor-velocity, 0) * 22px) rgba(var(--meteor-rgb), .32),
+        0 0 calc(44px + var(--meteor-velocity, 0) * 58px) rgba(var(--meteor-rgb), .18),
+        0 0 calc(70px + var(--meteor-velocity, 0) * 72px) rgba(var(--meteor-warm-rgb), .12);
+      filter: saturate(calc(106% + var(--meteor-velocity, 0) * 50%)) blur(calc(.06px + var(--meteor-velocity, 0) * .42px));
+      transform:
+        translate3d(calc(-100% - 15px), calc(-50% + var(--meteor-lift, 0px)), 0)
+        scaleX(var(--meteor-stretch, 1));
+      transform-origin: right center;
+      -webkit-mask-image:
+        linear-gradient(90deg, transparent 0%, rgba(0,0,0,.12) 18%, rgba(0,0,0,.72) 58%, #000 100%),
+        repeating-linear-gradient(90deg, #000 0 18px, rgba(0,0,0,.62) 20px 24px, #000 30px 42px);
+      mask-image:
+        linear-gradient(90deg, transparent 0%, rgba(0,0,0,.12) 18%, rgba(0,0,0,.72) 58%, #000 100%),
+        repeating-linear-gradient(90deg, #000 0 18px, rgba(0,0,0,.62) 20px 24px, #000 30px 42px);
+      opacity: calc(.34 + var(--meteor-flare, .28) * .38);
+      animation: meteor-tail-breathe 4.8s ease-in-out infinite;
+      transition: width 260ms cubic-bezier(.16, 1, .3, 1), height 260ms cubic-bezier(.16, 1, .3, 1), filter 220ms ease, opacity 220ms ease;
     }
 
     .instrument-orbit::after {
       content: "";
       position: absolute;
-      left: calc(var(--site-progress, 0) * 100%);
+      left: var(--meteor-x);
       top: 50%;
-      width: 9px;
-      height: 9px;
+      width: 44px;
+      height: 44px;
       border-radius: 999px;
-      background: rgba(248, 252, 255, .94);
-      box-shadow: 0 0 18px rgba(255, 255, 255, .74), 0 0 34px rgba(255, 193, 116, .38);
-      transform: translate(-50%, -50%);
+      background:
+        radial-gradient(circle at 62% 38%, rgba(255, 244, 205, 1) 0 10%, rgba(255, 255, 255, 1) 11% 33%, rgba(var(--meteor-rgb), .98) 34% 62%, rgba(var(--meteor-quiet-rgb), .36) 63% 100%);
+      box-shadow:
+        0 0 10px rgba(255, 255, 255, .84),
+        0 0 calc(22px + var(--meteor-velocity, 0) * 22px) rgba(var(--meteor-rgb), .62),
+        0 0 calc(54px + var(--meteor-velocity, 0) * 48px) rgba(var(--meteor-rgb), .30),
+        0 0 calc(78px + var(--meteor-velocity, 0) * 58px) rgba(var(--meteor-warm-rgb), .20);
+      filter: brightness(calc(.92 + var(--meteor-velocity, 0) * .18)) saturate(calc(112% + var(--meteor-velocity, 0) * 44%));
+      transform:
+        translate(-50%, calc(-50% + var(--meteor-lift, 0px)))
+        scale(calc(.92 + var(--meteor-velocity, 0) * .22));
+      z-index: 6;
+      animation: meteor-core-pulse 3.4s ease-in-out infinite;
+      transition: filter 180ms ease, box-shadow 220ms ease;
     }
 
     .instrument-orbit span {
       position: absolute;
-      inset: 5px 0 auto;
-      height: 1px;
-      opacity: .62;
-      background-image: linear-gradient(90deg, rgba(255,255,255,.16) 0 1px, transparent 1px 14px);
-      background-size: 14px 1px;
+      inset: -4px -10px;
+      border-radius: inherit;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .instrument-orbit span::before {
+      content: "";
+      position: absolute;
+      left: -2%;
+      right: -2%;
+      top: 50%;
+      height: 2px;
+      background:
+        linear-gradient(90deg, transparent, rgba(var(--meteor-rgb), .32), rgba(var(--meteor-warm-rgb), .18), transparent),
+        linear-gradient(90deg, transparent 0 5%, rgba(255,255,255,.50) 5.4% 5.7%, transparent 6.2% 100%);
+      background-size: 100% 100%, 220px 100%;
+      box-shadow:
+        0 0 18px rgba(var(--meteor-rgb), .28),
+        0 0 54px rgba(var(--meteor-rgb), .14);
+      transform: translateY(-50%);
+      opacity: .88;
+      animation: meteor-star-drift 13s linear infinite;
+    }
+
+    .instrument-orbit span::after {
+      content: "";
+      position: absolute;
+      inset: -2px -6px;
+      border-radius: inherit;
+      opacity: calc(.42 + var(--meteor-flare, .28) * .40);
+      background:
+        radial-gradient(circle at 4% 56%, rgba(255,255,255,.30) 0 1px, transparent 1.7px),
+        radial-gradient(circle at 12% 34%, rgba(var(--meteor-rgb),.30) 0 1.2px, transparent 2px),
+        radial-gradient(circle at 22% 72%, rgba(var(--meteor-warm-rgb),.22) 0 1.4px, transparent 2.2px),
+        radial-gradient(circle at 36% 42%, rgba(255,255,255,.24) 0 1.1px, transparent 1.9px),
+        radial-gradient(circle at 49% 66%, rgba(var(--meteor-rgb),.25) 0 1.3px, transparent 2.2px),
+        radial-gradient(circle at 63% 31%, rgba(var(--meteor-warm-rgb),.20) 0 1px, transparent 1.8px),
+        radial-gradient(circle at 78% 58%, rgba(255,255,255,.20) 0 1.1px, transparent 1.9px),
+        radial-gradient(circle at 94% 46%, rgba(var(--meteor-rgb),.22) 0 1.1px, transparent 1.9px);
+      filter: drop-shadow(0 0 8px rgba(var(--meteor-rgb), .30));
+      animation: meteor-dust-breathe 7.5s ease-in-out infinite;
+    }
+
+    @keyframes meteor-core-pulse {
+      0%, 100% {
+        transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(calc(.90 + var(--meteor-velocity, 0) * .18));
+        opacity: .88;
+      }
+      48% {
+        transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(calc(.98 + var(--meteor-velocity, 0) * .25));
+        opacity: 1;
+      }
+    }
+
+    .orbital-instrument[data-phase-pulse="1"] .instrument-orbit::after {
+      animation: phase-core-flare 720ms cubic-bezier(.16, 1, .3, 1) both;
+    }
+
+    .orbital-instrument[data-motion-state="accelerating"] .instrument-orbit::before {
+      opacity: .86;
+      filter: saturate(172%) blur(.22px);
+    }
+
+    .orbital-instrument[data-arrival="1"] {
+      --meteor-wake-length: clamp(92px, 12vw, 190px);
+      --meteor-wake-height: 18px;
+      --meteor-stretch: .88;
+      --meteor-ray-opacity: .16;
+    }
+
+    @keyframes phase-core-flare {
+      0% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(.92); filter: brightness(1) saturate(120%); }
+      34% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(1.22); filter: brightness(1.18) saturate(168%); }
+      100% { transform: translate(-50%, calc(-50% + var(--meteor-lift, 0px))) scale(calc(.94 + var(--meteor-velocity, 0) * .18)); filter: brightness(1) saturate(122%); }
+    }
+
+    @keyframes meteor-tail-breathe {
+      0%, 100% { opacity: calc(.48 + var(--meteor-flare, .28) * .20); }
+      52% { opacity: calc(.58 + var(--meteor-flare, .28) * .30); }
+    }
+
+    @keyframes meteor-star-drift {
+      from { background-position: 0 0, 0 0; }
+      to { background-position: 0 0, 220px 0; }
+    }
+
+    @keyframes meteor-dust-breathe {
+      0%, 100% { opacity: .68; transform: translateY(0) scaleY(.96); }
+      50% { opacity: 1; transform: translateY(-1px) scaleY(1.05); }
     }
 
     ::-webkit-scrollbar { width: 8px; }
@@ -603,7 +786,7 @@
       .brand-mark::after { width: 24px; margin-left: 10px; }
       .nav-action { min-height: 38px; padding: 0 14px; }
       .journey { min-height: auto; }
-      .journey-panel { min-height: 100dvh; padding: 86px 20px 78px; align-items: center; }
+      .journey-panel { min-height: 100dvh; padding: 86px 20px 178px; align-items: center; }
       .journey-panel[data-align="right"], .journey-panel[data-align="center"] { justify-items: start; text-align: left; }
       .copy-lock.centered { justify-items: start; }
       .journey h1 { font-size: clamp(42px, 12vw, 58px); max-width: 8.2em; }
@@ -617,25 +800,44 @@
       .proof-rail span { white-space: normal; }
       .phase-rail { left: 16px; right: 16px; bottom: max(10px, env(safe-area-inset-bottom)); }
       .orbital-instrument {
-        left: 16px;
-        right: 16px;
-        bottom: max(18px, env(safe-area-inset-bottom));
+        left: 18px;
+        right: 18px;
+        bottom: max(22px, env(safe-area-inset-bottom));
         width: auto;
+        min-height: 132px;
         grid-template-columns: 1fr;
-        gap: 7px;
-        padding: 12px 14px;
-        border-radius: 18px;
+        gap: 12px;
+        padding: 0;
         transform: none;
       }
+      .orbital-instrument::before {
+        left: 1%;
+        right: 1%;
+        top: 52%;
+        height: 118px;
+      }
+      .orbital-instrument::after {
+        width: 112%;
+        height: 112px;
+        bottom: -38px;
+      }
       .instrument-word,
-      .instrument-status { font-size: 9px; letter-spacing: .13em; }
+      .instrument-status { font-size: 10px; letter-spacing: .19em; }
+      .instrument-word::after,
+      .instrument-status::before { width: 52px; opacity: .58; }
       .instrument-status { text-align: left; }
-      .instrument-orbit { height: 16px; }
+      .instrument-orbit { height: 58px; }
+      .instrument-orbit::before { height: 19px; }
+      .instrument-orbit::after { width: 24px; height: 24px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
       .cinematic-texture::before,
-      .cinematic-texture::after { animation: none; }
+      .cinematic-texture::after,
+      .instrument-orbit::before,
+      .instrument-orbit::after,
+      .instrument-orbit span::before,
+      .instrument-orbit span::after { animation: none; }
     }
 
   </style>
@@ -649,7 +851,7 @@
 
   <nav class="site-nav" aria-label="網站導覽">
     <a class="brand-mark" href="#top" aria-label="ORBITAL 首頁">ORBITAL</a>
-    <a class="nav-action" href="#finale">Request access</a>
+    <a class="nav-action" href="#finale">Contact</a>
   </nav>
 
   <div class="phase-rail" id="phaseRail" aria-hidden="true"></div>
@@ -663,51 +865,52 @@
     <section class="journey-panel" data-align="left" data-phase="0">
       <div class="copy-lock">
         <p class="overline">ORBITAL</p>
-        <h1>Spatial intelligence for mission-scale environments.</h1>
-        <p>Cinematic command experiences for teams reading Earth, orbit, and critical infrastructure at once.</p>
-        <a class="primary-action" href="#systems">Explore capability</a>
+        <h1>From Earth into deep space.</h1>
+        <p>An interactive cosmic journey built for brands, stories, and products that need to be felt.</p>
+        <a class="primary-action" href="#systems">Enter the journey</a>
       </div>
     </section>
 
     <section class="journey-panel" id="systems" data-align="right" data-phase="0.34">
       <div class="copy-lock narrow">
-        <p class="section-note">Situational clarity</p>
-        <h2>Start close enough to read the world.</h2>
-        <p>Earth stays tactile. Terrain, atmosphere, and signal arrive as one readable scene.</p>
+        <p class="section-note">Near Earth</p>
+        <h2>Begin with the blue planet.</h2>
+        <p>Clouds, night lights, and atmosphere open the first frame.</p>
       </div>
     </section>
 
     <section class="journey-panel" data-align="left" data-phase="0.62">
       <div class="copy-lock narrow">
-        <p class="section-note">From terrain to orbit</p>
-        <h2>Distance becomes operational context.</h2>
-        <p>The camera pulls back without losing the thread. Scale becomes a decision layer.</p>
+        <p class="section-note">Orbit</p>
+        <h2>Distance reveals scale.</h2>
+        <p>The camera pulls back. The Moon, orbit, and planetary distance start to feel physical.</p>
       </div>
     </section>
 
     <section class="journey-panel" data-align="right" data-phase="0.82">
       <div class="copy-lock narrow">
-        <p class="section-note">Decision paths</p>
-        <h2>No dashboards. Just the route that matters.</h2>
-        <p>Motion filters complexity into one visible path, so teams can understand before they react.</p>
+        <p class="section-note">Deep Space</p>
+        <h2>Light cools. The field opens.</h2>
+        <p>Planets pass, stars gather, and the journey resolves into a cinematic deep-field view.</p>
       </div>
     </section>
 
     <section class="journey-panel" id="finale" data-align="center" data-phase="1">
+      <span id="contact" aria-hidden="true"></span>
       <div class="copy-lock centered">
-        <p class="section-note">Private command layer</p>
-        <h2>Build the room where decisions land.</h2>
-        <p>For teams that need spatial truth to feel immediate, legible, and impossible to ignore.</p>
-        <a class="primary-action" href="https://github.com/twk0672005/orbital-spatial-intelligence/issues/new?title=Private%20walkthrough%20request">Request a private walkthrough</a>
+        <p class="section-note">Contact</p>
+        <h2>Want your own interactive world?</h2>
+        <p>I can turn a brand, story, or product into an explorable 3D web experience.</p>
+        <a class="primary-action" href="https://wa.me/85292277895?text=Hi%2C%20I%20want%20to%20build%20an%20interactive%203D%20web%20experience." target="_blank" rel="noopener noreferrer">WhatsApp me</a>
         <div class="signature-line" aria-label="ORBITAL design principles">
-          <span>Scene before interface</span>
-          <span>Signal before noise</span>
-          <span>Motion with consequence</span>
+          <span>World before interface</span>
+          <span>Light before path</span>
+          <span>Motion changes scale</span>
         </div>
         <div class="proof-rail" aria-label="ORBITAL capability proof points">
-          <span>Earth scale</span>
-          <span>Orbit context</span>
-          <span>Decision room</span>
+          <span>Near Earth</span>
+          <span>Orbit</span>
+          <span>Deep Space</span>
         </div>
       </div>
     </section>
@@ -716,10 +919,10 @@
 
   <section class="hud" id="hud" style="--hud-opacity: 0;">
     <div class="title">
-      <p class="kicker">Cinematic cosmic zoom</p>
+      <p class="kicker">Cinematic cosmic lens</p>
       <h2>由地球退入深空</h2>
     </div>
-    <div class="signal" id="signal">galaxy formation</div>
+    <div class="signal" id="signal">galaxy forming</div>
   </section>
 
   <div class="caption" id="caption" aria-hidden="true" style="opacity: 0;">
@@ -1858,9 +2061,11 @@
     }
 
     function resize() {
-      const dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 720 ? 1.45 : 2);
       const w = window.innerWidth;
       const h = window.innerHeight;
+      const viewportPixels = w * h;
+      const dprCap = viewportPixels > 4200000 ? 1.25 : (w < 720 ? 1.45 : 2);
+      const dpr = Math.min(window.devicePixelRatio || 1, dprCap);
       renderer.setPixelRatio(dpr);
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
@@ -1881,7 +2086,12 @@
       frames: 0,
       fpsTime: performance.now(),
       autoStory: false,
-      autoStart: performance.now()
+      autoStart: performance.now(),
+      meteorVelocity: 0,
+      meteorVelocityTarget: 0,
+      lastScrollY: window.scrollY || 0,
+      lastScrollT: performance.now(),
+      lastBeatId: null
     };
 
     function setTarget(value, userDriven = true) {
@@ -1901,20 +2111,54 @@
     const phaseNames = {
       'near-earth': ['near earth', 'signal waking'],
       'leaving-earth': ['leaving earth', 'orbit opening'],
-      'moon-cue': ['lunar pass', 'scale aligning'],
-      'inner-system': ['inner system', 'light bending'],
+      'moon-cue': ['moon pass', 'scale aligning'],
+      'inner-system': ['inner system', 'light turning'],
       'giants': ['giant worlds', 'mass passing'],
       'outer-dark': ['outer dark', 'field cooling'],
       'galaxy-formation': ['deep field', 'arrival locked']
+    };
+    const phasePalettes = {
+      'near-earth': ['96, 187, 255', '255, 228, 170', '55, 118, 255', '.70'],
+      'leaving-earth': ['116, 207, 255', '255, 220, 150', '64, 142, 255', '.78'],
+      'moon-cue': ['184, 224, 255', '255, 236, 190', '112, 158, 255', '.74'],
+      'inner-system': ['135, 221, 255', '255, 200, 118', '88, 168, 255', '.88'],
+      'giants': ['156, 206, 255', '255, 183, 116', '116, 130, 255', '.84'],
+      'outer-dark': ['126, 171, 255', '218, 196, 255', '70, 100, 210', '.76'],
+      'galaxy-formation': ['178, 146, 255', '255, 196, 156', '98, 86, 210', '.92']
     };
     function updateSiteProgressVisual(progress, beat) {
       const value = String(progress);
       document.documentElement.style.setProperty('--site-progress', value);
       if (phaseRail) phaseRail.style.setProperty('--site-progress', value);
-      if (orbitalInstrument) orbitalInstrument.style.setProperty('--site-progress', value);
+      if (orbitalInstrument) {
+        orbitalInstrument.style.setProperty('--site-progress', value);
+        const palette = phasePalettes[beat.id] || ['126, 210, 255', '255, 209, 138', '82, 142, 255', '.78'];
+        orbitalInstrument.style.setProperty('--meteor-rgb', palette[0]);
+        orbitalInstrument.style.setProperty('--meteor-warm-rgb', palette[1]);
+        orbitalInstrument.style.setProperty('--meteor-quiet-rgb', palette[2]);
+        orbitalInstrument.style.setProperty('--meteor-energy', palette[3]);
+        const velocity = reduceMotion ? 0 : clamp(state.meteorVelocity || 0, 0, 1);
+        orbitalInstrument.style.setProperty('--meteor-velocity', velocity.toFixed(3));
+        orbitalInstrument.style.setProperty('--meteor-flare', (0.24 + velocity * 0.70).toFixed(3));
+        orbitalInstrument.style.setProperty('--meteor-stretch', (1 + velocity * 0.82).toFixed(3));
+        orbitalInstrument.style.setProperty('--meteor-lift', `${(-velocity * (isMobile ? 2.2 : 5.5)).toFixed(2)}px`);
+        orbitalInstrument.style.setProperty('--meteor-label-opacity', (0.92 - velocity * 0.24).toFixed(3));
+        orbitalInstrument.dataset.motionState = velocity < 0.045 ? 'idle-orbit' : (velocity > 0.24 ? 'accelerating' : 'coasting');
+        orbitalInstrument.dataset.arrival = progress > .985 ? '1' : '0';
+        if (state.lastBeatId && state.lastBeatId !== beat.id) {
+          orbitalInstrument.dataset.phasePulse = '1';
+          window.clearTimeout(orbitalInstrument._phasePulseTimer);
+          orbitalInstrument._phasePulseTimer = window.setTimeout(() => {
+            orbitalInstrument.dataset.phasePulse = '0';
+          }, 720);
+        }
+      }
       const label = phaseNames[beat.id] || [beat.id.replace(/-/g, ' '), 'signal moving'];
-      if (phaseWord) phaseWord.textContent = label[0];
-      if (phaseStatus) phaseStatus.textContent = label[1];
+      if (state.lastBeatId !== beat.id) {
+        if (phaseWord) phaseWord.textContent = label[0];
+        if (phaseStatus) phaseStatus.textContent = label[1];
+        state.lastBeatId = beat.id;
+      }
     }
     function pageScrollProgress() {
       const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
@@ -1925,6 +2169,13 @@
       scrollTicking = false;
       if (hasPresetProgress) return;
       state.autoStory = false;
+      const now = performance.now();
+      const dy = window.scrollY - state.lastScrollY;
+      const dt = Math.max(16, now - state.lastScrollT);
+      const pxPerMs = Math.abs(dy) / dt;
+      state.lastScrollY = window.scrollY;
+      state.lastScrollT = now;
+      state.meteorVelocityTarget = reduceMotion ? 0 : clamp(pxPerMs / (isMobile ? 2.8 : 1.35), 0, 1);
       const next = pageScrollProgress();
       state.target = next;
       if (phaseRail) phaseRail.style.setProperty('--site-progress', String(next));
@@ -2180,6 +2431,15 @@
         setTarget(autoT, false);
         if (autoT >= 1) state.autoStory = false;
       }
+      const velocitySpring = state.meteorVelocityTarget > state.meteorVelocity ? 0.34 : 0.105;
+      state.meteorVelocity += (state.meteorVelocityTarget - state.meteorVelocity) * (reduceMotion ? 1 : velocitySpring);
+      state.meteorVelocityTarget *= reduceMotion ? 0 : 0.915;
+      const progressDeltaVelocity = reduceMotion ? 0 : clamp(Math.abs(state.target - state.progress) * 10.5, 0, 1);
+      state.meteorVelocityTarget = Math.max(state.meteorVelocityTarget, progressDeltaVelocity);
+      if (!reduceMotion && progressDeltaVelocity > state.meteorVelocity) {
+        state.meteorVelocity += (progressDeltaVelocity - state.meteorVelocity) * 0.52;
+      }
+      if (state.meteorVelocity < 0.002) state.meteorVelocity = 0;
       const ease = reduceMotion ? 1 : 0.075;
       state.progress += (state.target - state.progress) * ease;
       state.progress = clamp(state.progress, 0, 1);
@@ -2241,6 +2501,8 @@
         progress: Number(p.toFixed(3)),
         target: Number(state.target.toFixed(3)),
         currentBeat: beat.id,
+        meteorVelocity: Number((state.meteorVelocity || 0).toFixed(3)),
+        motionState: orbitalInstrument?.dataset.motionState || 'unknown',
         renderer: 'three-webgl',
         labelsVisible: false,
         posterLayoutDetected: false,
@@ -2261,7 +2523,7 @@
         backgroundRealismPass: 'light-depth-v1',
         lightingRigVersion: 'solar-contrast-v1',
         spaceBackdropVersion: 'deep-field-arrival-v4-art-locked',
-        animationWorkflow: 'cinematic-galaxy-arrival-v2',
+        animationWorkflow: 'react-bits-inspired-velocity-wake-v2-progress-delta',
         clawTeamReviewApplied: 'orbital-art-20260628-141516',
         toneMappingExposure: renderer.toneMappingExposure,
         fogDensity: Number(scene.fog.density.toFixed(5)),
