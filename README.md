@@ -1,5 +1,7 @@
-# ORBITAL
+# ORBITAL — From Earth into deep space
 
-Cinematic WebGL site for an interactive journey from Earth into deep space.
+An interactive WebGL journey through nine worlds, from Earth to the deep-field galaxy finale.
 
-Published via GitHub Pages.
+Live site: https://twk0672005.github.io/orbital-spatial-intelligence/
+
+Planetary imagery sources and attribution are listed in `assets/nasa/SOURCES.md`.

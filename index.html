@@ -46,10 +46,11 @@
       inset: 0;
       z-index: 6;
       pointer-events: none;
+      opacity: calc(.78 - var(--site-progress, 0) * .14);
       background:
-        radial-gradient(circle at 54% 46%, transparent 0 28%, rgba(0, 0, 0, .10) 46%, rgba(0, 0, 0, .74) 100%),
-        radial-gradient(circle at 18% 18%, rgba(42, 67, 110, .10), transparent 24rem),
-        linear-gradient(90deg, rgba(1, 3, 10, .76), transparent 36%, transparent 66%, rgba(1, 3, 10, .80));
+        radial-gradient(circle at 54% 46%, transparent 0 31%, rgba(0, 0, 0, .06) 52%, rgba(0, 0, 0, .58) 100%),
+        radial-gradient(circle at 18% 18%, rgba(42, 67, 110, .08), transparent 24rem),
+        linear-gradient(90deg, rgba(1, 3, 10, .62), transparent 33%, transparent 70%, rgba(1, 3, 10, .66));
       mix-blend-mode: multiply;
     }
 
@@ -64,6 +65,7 @@
     }
 
     .cinematic-texture {
+      display: none;
       position: fixed;
       inset: 0;
       z-index: 8;
@@ -502,6 +504,7 @@
     }
 
     .orbital-instrument {
+      display: none !important;
       --meteor-x: calc(var(--site-progress, 0) * 100%);
       --meteor-rgb: 188, 232, 255;
       --meteor-warm-rgb: 255, 208, 148;
@@ -929,7 +932,16 @@
     ::-webkit-scrollbar-thumb { background: rgba(203, 225, 255, .24); border-radius: 999px; }
 
     @media (max-width: 759px) {
-      .site-nav { top: max(14px, env(safe-area-inset-top)); left: 16px; right: 16px; min-height: 44px; }
+      .site-nav { top: max(14px, env(safe-area-inset-top)); left: 16px; right: 16px; min-height: 44px; isolation: isolate; }
+      .site-nav::before {
+        content: "";
+        position: fixed;
+        z-index: -1;
+        inset: 0 0 auto 0;
+        height: max(92px, calc(env(safe-area-inset-top) + 78px));
+        background: linear-gradient(180deg, rgb(1, 3, 10) 0%, rgb(1, 3, 10) 70%, rgba(1, 3, 10, .82) 82%, rgba(1, 3, 10, 0) 100%);
+        pointer-events: none;
+      }
       .brand-mark { letter-spacing: .18em; }
       .brand-mark::after { width: 24px; margin-left: 10px; }
       .nav-action { min-height: 38px; padding: 0 14px; }
@@ -1154,6 +1166,120 @@
 
     renderer.autoClear = false;
 
+    // Visual Fidelity v5: a procedural deep-field plate rendered behind the 3D bodies.
+    // It gives the final arrival a luminous galactic mass without flattening planets into UI.
+    const spaceBackdropScene = new THREE.Scene();
+    const spaceBackdropCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const spaceBackdropUniforms = {
+      uResolution: { value: new THREE.Vector2(1, 1) },
+      uTime: { value: 0 },
+      uProgress: { value: 0 },
+      uMobile: { value: isMobile ? 1 : 0 }
+    };
+    const spaceBackdropMaterial = new THREE.ShaderMaterial({
+      uniforms: spaceBackdropUniforms,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.NormalBlending,
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = vec4(position.xy, 0.0, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying vec2 vUv;
+        uniform vec2 uResolution;
+        uniform float uTime;
+        uniform float uProgress;
+        uniform float uMobile;
+
+        float hash21(vec2 p) {
+          p = fract(p * vec2(123.34, 456.21));
+          p += dot(p, p + 45.32);
+          return fract(p.x * p.y);
+        }
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash21(i), hash21(i + vec2(1.0, 0.0)), f.x),
+                     mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0, 1.0)), f.x), f.y);
+        }
+        float fbm(vec2 p) {
+          float value = 0.0;
+          float amp = 0.52;
+          mat2 turn = mat2(0.82, 0.57, -0.57, 0.82);
+          for (int i = 0; i < 5; i++) {
+            value += noise(p) * amp;
+            p = turn * p * 2.03 + 17.7;
+            amp *= 0.48;
+          }
+          return value;
+        }
+        mat2 rotate2(float a) {
+          float c = cos(a), s = sin(a);
+          return mat2(c, -s, s, c);
+        }
+
+        void main() {
+          vec2 p = vUv * 2.0 - 1.0;
+          float aspect = uResolution.x / max(1.0, uResolution.y);
+          p.x *= aspect;
+
+          float arrival = smoothstep(0.82, 0.985, uProgress);
+          float settle = smoothstep(0.86, 1.0, uProgress);
+          vec2 center = mix(vec2(-0.55 * aspect, 0.12), vec2(-0.15 * aspect, 0.22), uMobile);
+          vec2 q = rotate2(-0.12) * (p - center);
+          float radial = length(q * vec2(0.62, 2.50));
+          float outer = smoothstep(1.64, 0.08, radial);
+          float warp = (fbm(q * vec2(1.50, 4.20) + vec2(uTime * 0.006, 2.1)) - 0.48);
+          float filament = exp(-abs(q.y + warp * 0.18) / mix(0.19, 0.055, smoothstep(0.0, 1.2, abs(q.x))));
+          float broadDisk = exp(-abs(q.y + warp * 0.10) / 0.26) * outer;
+          float fineDisk = filament * outer;
+
+          float coreR = length((q - vec2(-0.07, 0.01)) * vec2(1.30, 4.6));
+          float core = exp(-coreR * 5.0) * smoothstep(1.15, 0.0, radial);
+          float halo = exp(-coreR * 1.55) * smoothstep(1.42, 0.10, radial);
+
+          float dustNoise = fbm(q * vec2(2.0, 9.0) + vec2(7.3, -uTime * 0.003));
+          float dustLane = smoothstep(0.36, 0.76, dustNoise) * exp(-abs(q.y + warp * 0.11 + 0.018) / 0.085) * outer;
+          float brokenCloud = smoothstep(0.30, 0.82, fbm(q * 2.1 + vec2(4.0, -1.7))) * broadDisk;
+
+          vec3 cold = vec3(0.20, 0.38, 0.78);
+          vec3 ice = vec3(0.48, 0.72, 1.0);
+          vec3 warm = vec3(1.0, 0.52, 0.22);
+          vec3 gold = vec3(1.0, 0.82, 0.52);
+          vec3 color = cold * broadDisk * (0.34 + brokenCloud * 0.34);
+          color += ice * fineDisk * (0.24 + brokenCloud * 0.27);
+          color += warm * halo * 0.18 + gold * core * 0.52;
+          color *= 1.0 - dustLane * 0.82;
+
+          // Deep stars: sparse, circular and unequally bright rather than a uniform point grid.
+          vec2 starGrid = p * vec2(112.0, 74.0);
+          vec2 cell = floor(starGrid);
+          vec2 local = fract(starGrid) - 0.5;
+          float seed = hash21(cell);
+          vec2 jitter = vec2(hash21(cell + 1.7), hash21(cell + 9.2)) - 0.5;
+          float starDistance = length(local - jitter * 0.62);
+          float starMask = step(0.978, seed);
+          float star = smoothstep(0.075, 0.0, starDistance) * starMask;
+          float glint = smoothstep(0.996, 1.0, seed) * exp(-abs(local.x - jitter.x * 0.62) * 38.0) * exp(-abs(local.y - jitter.y * 0.62) * 6.0);
+          float twinkle = 0.82 + 0.18 * sin(uTime * (0.24 + seed) + seed * 30.0);
+          color += mix(vec3(0.58, 0.74, 1.0), vec3(1.0, 0.80, 0.57), step(0.91, hash21(cell + 4.2))) * (star * twinkle * 0.70 + glint * 0.14);
+
+          float field = smoothstep(0.46, 0.98, arrival);
+          float alpha = clamp((broadDisk * 0.55 + fineDisk * 0.46 + halo * 0.18 + core * 0.24 + star * 0.20) * arrival, 0.0, 0.90);
+          color *= mix(0.62, 1.0, field) * mix(1.0, 0.94, settle);
+          gl_FragColor = vec4(color, alpha);
+        }
+      `
+    });
+    spaceBackdropScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), spaceBackdropMaterial));
+
     const shaderWakeScene = new THREE.Scene();
     const shaderWakeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     const shaderWakeUniforms = {
@@ -1312,16 +1438,18 @@
       shaderWakeUniforms.uProgress.value = clamp(progress, 0, 1);
       shaderWakeUniforms.uVelocity.value = reduceMotion ? 0 : clamp(velocity || 0, 0, 1);
       shaderWakeUniforms.uTime.value = reduceMotion ? Math.min(nowSeconds, .8) : nowSeconds;
-      shaderWakeUniforms.uOpacity.value = reduceMotion ? 0.16 : (isMobile ? 0.48 : 0.60);
+      shaderWakeUniforms.uOpacity.value = 0;
       shaderWakeUniforms.uArrival.value = smooth(.78, .98, progress);
     }
 
     function renderSceneWithShaderWake(progress = state?.progress || 0, velocity = state?.meteorVelocity || 0, nowSeconds = 0) {
       renderer.clear();
-      renderer.render(scene, camera);
+      spaceBackdropUniforms.uProgress.value = clamp(progress, 0, 1);
+      spaceBackdropUniforms.uTime.value = reduceMotion ? Math.min(nowSeconds, 1.0) : nowSeconds;
+      renderer.render(spaceBackdropScene, spaceBackdropCamera);
       renderer.clearDepth();
+      renderer.render(scene, camera);
       updateShaderWake(progress, velocity, nowSeconds);
-      renderer.render(shaderWakeScene, shaderWakeCamera);
     }
 
 
@@ -1335,19 +1463,27 @@
     let earthTextureLoaded = false;
     let cloudTextureLoaded = false;
     let earthNightLoaded = false;
+    const assetStatus = {};
 
-    function loadTexture(path, onLoad) {
+    function loadTexture(path, onLoad, assetKey = path) {
+      assetStatus[assetKey] = { path, loaded: false, error: false };
       const texture = textureLoader.load(path, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        assetStatus[assetKey].loaded = true;
         if (onLoad) onLoad(tex);
-      });
+      }, undefined, () => { assetStatus[assetKey].error = true; });
       return texture;
     }
 
-    const earthDay = loadTexture('assets/earth_day.jpg', () => { earthTextureLoaded = true; });
-    const earthClouds = loadTexture('assets/earth_clouds.png', () => { cloudTextureLoaded = true; });
-    const earthNight = loadTexture('assets/earth_night.jpg', () => { earthNightLoaded = true; });
+    const earthDay = loadTexture('assets/earth_day.jpg', () => { earthTextureLoaded = true; }, 'earthDay');
+    const earthClouds = loadTexture('assets/earth_clouds.png', () => { cloudTextureLoaded = true; }, 'earthClouds');
+    const earthNight = loadTexture('assets/earth_night.jpg', () => { earthNightLoaded = true; }, 'earthNight');
+    const mercuryMap = loadTexture('assets/nasa/mercury-usgs-1024.jpg', null, 'mercuryMessenger');
+    const venusSurfaceMap = loadTexture('assets/nasa/venus-magellan.jpg', null, 'venusMagellan');
+    const marsMap = loadTexture('assets/nasa/mars-viking.jpg', null, 'marsViking');
+    const jupiterVoyagerMap = loadTexture('assets/nasa/jupiter-voyager.jpg', null, 'jupiterVoyager');
+    const plutoMap = loadTexture('assets/nasa/pluto-new-horizons-1024.jpg', null, 'plutoNewHorizons');
 
     const bodies = new THREE.Group();
     scene.add(bodies);
@@ -1454,49 +1590,127 @@
 
     function createGasGiantCanvas(kind = 'jupiter') {
       const c = document.createElement('canvas');
-      c.width = 512;
-      c.height = 256;
+      c.width = 1024;
+      c.height = 512;
       const g = c.getContext('2d');
       const palettes = {
-        jupiter: ['#5c3829', '#b48058', '#edd0a5', '#8e5f43', '#d7a978', '#f1dcc0', '#6f4932'],
-        saturn: ['#514a3b', '#8d7d5c', '#c0aa7d', '#706143', '#a89366', '#d0be91', '#3d362d']
+        jupiter: [[67,39,29],[132,83,55],[224,181,132],[111,66,43],[198,145,96],[242,218,181],[83,50,34]],
+        saturn: [[62,56,44],[118,103,75],[190,166,119],[93,80,57],[164,142,98],[219,200,156],[51,45,36]]
       };
       const p = palettes[kind] || palettes.jupiter;
+      const mixRgb = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
       for (let y = 0; y < c.height; y++) {
-        const n1 = Math.sin(y * 0.033) * 0.5 + 0.5;
-        const n2 = Math.sin(y * 0.087 + 1.7) * 0.5 + 0.5;
-        const idx = Math.floor((n1 * 0.62 + n2 * 0.38) * (p.length - 1));
-        g.fillStyle = p[idx];
+        const v = y / c.height;
+        const broad = Math.sin(v * Math.PI * (kind === 'jupiter' ? 18 : 13) + Math.sin(v * 31) * .72);
+        const fine = Math.sin(v * Math.PI * 53 + Math.cos(v * 17) * 1.4);
+        const drift = Math.sin(v * 11.7 + 1.2) * .5 + .5;
+        const band = Math.max(0, Math.min(p.length - 1.001, (broad * .5 + .5) * (p.length - 1) * .68 + drift * (p.length - 1) * .32));
+        const i0 = Math.floor(band);
+        const rgb = mixRgb(p[i0], p[Math.min(p.length - 1, i0 + 1)], band - i0);
+        const modulation = Math.round(fine * (kind === 'jupiter' ? 8 : 5));
+        g.fillStyle = `rgb(${rgb[0] + modulation},${rgb[1] + modulation},${rgb[2] + modulation})`;
         g.fillRect(0, y, c.width, 1);
       }
-      for (let i = 0; i < 1400; i++) {
-        const x = (Math.sin(i * 48.13) * 0.5 + 0.5) * c.width;
-        const y = (Math.sin(i * 17.91) * 0.5 + 0.5) * c.height;
-        const w = 18 + (Math.sin(i * 5.17) * 0.5 + 0.5) * 92;
-        const h = 0.45 + (Math.sin(i * 11.7) * 0.5 + 0.5) * 2.1;
-        g.fillStyle = `rgba(255,255,255,${kind === 'jupiter' ? 0.025 : 0.018})`;
-        g.fillRect(x, y, w, h);
-        g.fillStyle = `rgba(35,20,15,${kind === 'jupiter' ? 0.020 : 0.012})`;
-        g.fillRect((x + 31) % c.width, y + 2, w * 0.72, h);
-      }
-      if (kind === 'jupiter') {
-        const storm = g.createRadialGradient(332, 144, 3, 332, 144, 42);
-        storm.addColorStop(0, 'rgba(237,166,104,.82)');
-        storm.addColorStop(0.42, 'rgba(158,76,54,.74)');
-        storm.addColorStop(0.82, 'rgba(92,42,31,.18)');
-        storm.addColorStop(1, 'rgba(92,42,31,0)');
-        g.fillStyle = storm;
+
+      g.globalCompositeOperation = 'soft-light';
+      for (let i = 0; i < (kind === 'jupiter' ? 3200 : 2200); i++) {
+        const seed = Math.sin(i * 91.733) * 43758.5453;
+        const seed2 = Math.sin(i * 47.117) * 24634.6345;
+        const a = seed - Math.floor(seed);
+        const b = seed2 - Math.floor(seed2);
+        const x = a * c.width;
+        const y = b * c.height;
+        const latitude = Math.abs(y / c.height - .5) * 2;
+        const length = 26 + a * (kind === 'jupiter' ? 180 : 130) * (1 - latitude * .35);
+        const height = .45 + b * (kind === 'jupiter' ? 3.1 : 2.0);
+        const light = (i % 3 === 0);
+        g.fillStyle = light
+          ? `rgba(255,244,215,${0.018 + a * .032})`
+          : `rgba(38,20,16,${0.014 + b * .026})`;
         g.beginPath();
-        g.ellipse(332, 144, 46, 19, -0.08, 0, Math.PI * 2);
+        g.ellipse(x, y, length, height, Math.sin(y * .021) * .018, 0, Math.PI * 2);
         g.fill();
       }
-      const shade = g.createLinearGradient(0, 0, c.width, 0);
-      shade.addColorStop(0, 'rgba(0,0,0,.20)');
-      shade.addColorStop(0.18, 'rgba(0,0,0,0)');
-      shade.addColorStop(0.72, 'rgba(255,255,255,.06)');
-      shade.addColorStop(1, 'rgba(0,0,0,.18)');
-      g.fillStyle = shade;
+      g.globalCompositeOperation = 'source-over';
+
+      if (kind === 'jupiter') {
+        const stormX = 664, stormY = 302;
+        for (let layer = 0; layer < 9; layer++) {
+          const t = layer / 8;
+          g.strokeStyle = `rgba(${Math.round(208 - t * 62)},${Math.round(103 - t * 28)},${Math.round(70 - t * 22)},${0.14 + (1 - t) * .16})`;
+          g.lineWidth = 2 + (1 - t) * 4;
+          g.beginPath();
+          g.ellipse(stormX, stormY, 84 - layer * 6.2, 34 - layer * 2.4, -0.08 + t * .12, 0, Math.PI * 2);
+          g.stroke();
+        }
+        const eye = g.createRadialGradient(stormX - 10, stormY - 4, 2, stormX, stormY, 66);
+        eye.addColorStop(0, 'rgba(255,205,145,.72)');
+        eye.addColorStop(.30, 'rgba(196,91,61,.62)');
+        eye.addColorStop(.72, 'rgba(104,43,35,.28)');
+        eye.addColorStop(1, 'rgba(72,32,28,0)');
+        g.fillStyle = eye;
+        g.beginPath();
+        g.ellipse(stormX, stormY, 88, 37, -0.08, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      const polarShade = g.createLinearGradient(0, 0, 0, c.height);
+      polarShade.addColorStop(0, 'rgba(8,12,20,.25)');
+      polarShade.addColorStop(.16, 'rgba(8,12,20,.02)');
+      polarShade.addColorStop(.50, 'rgba(255,244,220,.035)');
+      polarShade.addColorStop(.84, 'rgba(8,12,20,.03)');
+      polarShade.addColorStop(1, 'rgba(8,12,20,.28)');
+      g.fillStyle = polarShade;
       g.fillRect(0, 0, c.width, c.height);
+      return c;
+    }
+
+    function createAtmosphericPlanetCanvas(kind) {
+      const c = document.createElement('canvas');
+      c.width = isMobile ? 512 : 1024;
+      c.height = c.width / 2;
+      const g = c.getContext('2d');
+      const palettes = {
+        venus: ['#7d4d1f', '#d69c4f', '#f2cf88', '#b87532'],
+        uranus: ['#3f9faf', '#77c9cf', '#a6e0dd', '#5eb8c4'],
+        neptune: ['#061d63', '#123eae', '#2e70df', '#0a2a89']
+      };
+      const p = palettes[kind];
+      const base = g.createLinearGradient(0, 0, 0, c.height);
+      p.forEach((color, i) => base.addColorStop(i / (p.length - 1), color));
+      g.fillStyle = base;
+      g.fillRect(0, 0, c.width, c.height);
+
+      g.globalCompositeOperation = kind === 'neptune' ? 'screen' : 'soft-light';
+      const bands = kind === 'venus' ? 170 : (kind === 'neptune' ? 115 : 72);
+      for (let i = 0; i < bands; i++) {
+        const seed = Math.sin(i * 87.13) * 43758.5453;
+        const r = seed - Math.floor(seed);
+        const y = r * c.height;
+        const x = ((Math.sin(i * 41.7) * .5 + .5) * c.width) - c.width * .15;
+        const width = c.width * (.26 + r * .66);
+        const height = kind === 'uranus' ? 1 + r * 2 : 2 + r * 8;
+        const alpha = kind === 'uranus' ? .025 + r * .035 : .025 + r * .075;
+        g.fillStyle = kind === 'venus'
+          ? `rgba(255,238,188,${alpha})`
+          : `rgba(210,242,255,${alpha})`;
+        g.beginPath();
+        g.ellipse(x, y, width, height, Math.sin(y * .03) * .025, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      if (kind === 'neptune') {
+        g.globalCompositeOperation = 'multiply';
+        const spot = g.createRadialGradient(c.width * .63, c.height * .59, 2, c.width * .63, c.height * .59, c.width * .085);
+        spot.addColorStop(0, 'rgba(0,8,38,.76)');
+        spot.addColorStop(.58, 'rgba(0,18,66,.48)');
+        spot.addColorStop(1, 'rgba(0,20,78,0)');
+        g.fillStyle = spot;
+        g.beginPath();
+        g.ellipse(c.width * .63, c.height * .59, c.width * .09, c.height * .065, -.10, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.globalCompositeOperation = 'source-over';
       return c;
     }
 
@@ -1510,7 +1724,7 @@
         const r = x / c.width;
         const gap = (r > .45 && r < .50) || (r > .66 && r < .69);
         const wave = Math.sin(x * 0.06) * 0.5 + 0.5;
-        const alpha = gap ? 0.025 : 0.13 + wave * 0.18;
+        const alpha = gap ? 0.035 : 0.24 + wave * 0.34;
         g.fillStyle = `rgba(${176 + wave * 38},${164 + wave * 34},${122 + wave * 30},${alpha})`;
         g.fillRect(x, 0, 1, c.height);
       }
@@ -1695,8 +1909,69 @@
       return c;
     }
 
+    function createGalaxySpiralCanvas() {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 1024;
+      const g = c.getContext('2d');
+      const cx = 512;
+      const cy = 512;
+      g.clearRect(0, 0, 1024, 1024);
+      g.globalCompositeOperation = 'lighter';
+
+      const halo = g.createRadialGradient(cx, cy, 0, cx, cy, 470);
+      halo.addColorStop(0, 'rgba(255,232,185,.42)');
+      halo.addColorStop(.18, 'rgba(255,176,112,.18)');
+      halo.addColorStop(.48, 'rgba(113,151,242,.072)');
+      halo.addColorStop(.78, 'rgba(75,92,180,.025)');
+      halo.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = halo;
+      g.fillRect(0, 0, 1024, 1024);
+
+      for (let i = 0; i < 11200; i++) {
+        const a = Math.abs((Math.sin(i * 12.9898) * 43758.5453) % 1);
+        const b = Math.abs((Math.sin(i * 78.233) * 24634.6345) % 1);
+        const d = Math.abs((Math.sin(i * 39.425) * 15417.9432) % 1);
+        const e = Math.abs((Math.sin(i * 91.711) * 31831.7211) % 1);
+        const arm = i % 5;
+        const radius = 12 + Math.pow(a, .66) * 430;
+        const angle = arm * Math.PI * 2 / 5 + radius * .018 + (b - .5) * (.18 + radius * .0015);
+        const armWidth = 4 + radius * .026;
+        const x = cx + Math.cos(angle) * radius + (d - .5) * armWidth;
+        const y = cy + Math.sin(angle) * radius * .72 + (e - .5) * armWidth;
+        const coreBias = Math.max(0, 1 - radius / 150);
+        const size = i % 157 === 0 ? 2.4 + e * 2.8 : .45 + e * (1.2 + coreBias * 1.5);
+        const alpha = i % 157 === 0 ? .34 : .025 + coreBias * .085 + (1 - radius / 460) * .018;
+        if (coreBias > .46) g.fillStyle = `rgba(255,226,174,${alpha})`;
+        else if (arm === 1 || arm === 3) g.fillStyle = `rgba(255,123,102,${alpha * .72})`;
+        else g.fillStyle = `rgba(112,174,255,${alpha * .88})`;
+        g.beginPath();
+        g.arc(x, y, size, 0, Math.PI * 2);
+        g.fill();
+      }
+
+      const core = g.createRadialGradient(cx, cy, 0, cx, cy, 126);
+      core.addColorStop(0, 'rgba(255,247,214,.90)');
+      core.addColorStop(.18, 'rgba(255,203,135,.62)');
+      core.addColorStop(.52, 'rgba(255,137,104,.20)');
+      core.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = core;
+      g.fillRect(0, 0, 1024, 1024);
+
+      g.globalCompositeOperation = 'destination-in';
+      const mask = g.createRadialGradient(cx, cy, 30, cx, cy, 510);
+      mask.addColorStop(0, 'rgba(255,255,255,1)');
+      mask.addColorStop(.72, 'rgba(255,255,255,.92)');
+      mask.addColorStop(.92, 'rgba(255,255,255,.25)');
+      mask.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = mask;
+      g.fillRect(0, 0, 1024, 1024);
+      g.globalCompositeOperation = 'source-over';
+      return c;
+    }
+
     function createGalaxyPaintSprite(size, opacity = 0) {
-      const map = textureFromCanvas(createGalaxyPaintCanvas());
+      const map = textureFromCanvas(createGalaxySpiralCanvas());
       const material = new THREE.SpriteMaterial({
         map,
         transparent: true,
@@ -2068,47 +2343,157 @@
       return mesh;
     }
 
+    function createRimShell(name, radius, color, baseOpacity, position) {
+      const shell = sphere(name, radius, new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0,
+        side: THREE.BackSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      }), position.clone());
+      shell.userData.baseOpacity = baseOpacity;
+      return shell;
+    }
+
+    function planetFade(progress, enterA, enterB, exitA, exitB) {
+      return smooth(enterA, enterB, progress) * (1 - smooth(exitA, exitB, progress));
+    }
+
+    function createMoonSurfaceCanvas() {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 512;
+      const g = c.getContext('2d');
+      const base = g.createLinearGradient(0, 0, 0, c.height);
+      base.addColorStop(0, '#9b9d9a');
+      base.addColorStop(.48, '#c5c4bd');
+      base.addColorStop(1, '#858783');
+      g.fillStyle = base;
+      g.fillRect(0, 0, c.width, c.height);
+      for (let i = 0; i < 1100; i++) {
+        const sa = Math.sin(i * 91.731) * 43758.5453;
+        const sb = Math.sin(i * 47.119) * 24634.6345;
+        const a = sa - Math.floor(sa);
+        const b = sb - Math.floor(sb);
+        const x = a * c.width;
+        const y = b * c.height;
+        const r = i % 67 === 0 ? 18 + a * 40 : 0.8 + a * 6.5;
+        g.fillStyle = `rgba(43,47,49,${i % 67 === 0 ? .16 : .035 + b * .075})`;
+        g.beginPath();
+        g.ellipse(x, y, r, r * (.48 + b * .34), a * .6, 0, Math.PI * 2);
+        g.fill();
+        if (r > 10) {
+          g.strokeStyle = `rgba(235,235,224,${.08 + a * .08})`;
+          g.lineWidth = 1.2 + b * 2.2;
+          g.beginPath();
+          g.ellipse(x - r * .08, y - r * .08, r * .92, r * (.42 + b * .3), a * .6, 0, Math.PI * 2);
+          g.stroke();
+        }
+      }
+      const maria = [[.30,.42,96,44],[.63,.32,78,51],[.72,.60,120,55],[.45,.68,66,38]];
+      maria.forEach(([x,y,rx,ry], i) => {
+        const grad = g.createRadialGradient(x*c.width,y*c.height,3,x*c.width,y*c.height,rx);
+        grad.addColorStop(0, `rgba(42,48,52,${.22 - i*.018})`);
+        grad.addColorStop(.72, 'rgba(51,56,58,.09)');
+        grad.addColorStop(1, 'rgba(51,56,58,0)');
+        g.fillStyle = grad;
+        g.beginPath();
+        g.ellipse(x*c.width,y*c.height,rx,ry,.12*i,0,Math.PI*2);
+        g.fill();
+      });
+      return c;
+    }
+
+    const moonTexture = textureFromCanvas(createMoonSurfaceCanvas());
     const jupiterTexture = textureFromCanvas(createGasGiantCanvas('jupiter'));
     const saturnTexture = textureFromCanvas(createGasGiantCanvas('saturn'));
     const saturnRingTexture = textureFromCanvas(createSaturnRingCanvas());
+    const venusCloudMap = textureFromCanvas(createAtmosphericPlanetCanvas('venus'));
+    const uranusMap = textureFromCanvas(createAtmosphericPlanetCanvas('uranus'));
+    const neptuneMap = textureFromCanvas(createAtmosphericPlanetCanvas('neptune'));
 
-    const earth = sphere('earth', 2.0, new THREE.MeshStandardMaterial({
+    const earth = sphere('earth', 2.0, new THREE.MeshPhysicalMaterial({
       map: earthDay,
-      roughness: 0.9,
+      roughness: 0.74,
       metalness: 0,
-      emissive: new THREE.Color(0x081426),
+      clearcoat: 0.16,
+      clearcoatRoughness: 0.72,
+      emissive: new THREE.Color(0x071326),
       emissiveMap: earthNight,
-      emissiveIntensity: 0.13
+      emissiveIntensity: 0.19
     }), v3(0, 0, 0));
 
-    const cloudShell = sphere('earth-clouds', 2.025, new THREE.MeshStandardMaterial({
+    const cloudShell = sphere('earth-clouds', 2.026, new THREE.MeshStandardMaterial({
       map: earthClouds,
       transparent: true,
-      opacity: 0.29,
-      roughness: 1,
-      depthWrite: false
+      opacity: 0.36,
+      roughness: 0.92,
+      depthWrite: false,
+      alphaTest: 0.012
     }), v3(0, 0, 0));
 
-    const atmosphere = sphere('earth-atmosphere', 2.10, new THREE.MeshBasicMaterial({
-      color: 0x5fb8ff,
+    const atmosphereUniforms = {
+      uFade: { value: 1 },
+      uSunDirection: { value: new THREE.Vector3(-0.84, 0.22, 0.42).normalize() }
+    };
+    const atmosphere = sphere('earth-atmosphere', 2.16, new THREE.ShaderMaterial({
+      uniforms: atmosphereUniforms,
       transparent: true,
-      opacity: 0.105,
+      side: THREE.FrontSide,
+      depthWrite: false,
       blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
-      depthWrite: false
+      vertexShader: `
+        varying vec3 vWorldNormal;
+        varying vec3 vWorldPosition;
+        void main() {
+          vWorldNormal = normalize(mat3(modelMatrix) * normal);
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPosition;
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying vec3 vWorldNormal;
+        varying vec3 vWorldPosition;
+        uniform float uFade;
+        uniform vec3 uSunDirection;
+        void main() {
+          vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+          float rim = pow(1.0 - max(0.0, dot(normalize(vWorldNormal), viewDirection)), 2.45);
+          float sunFacing = max(0.0, dot(normalize(vWorldNormal), normalize(uSunDirection)));
+          float terminator = smoothstep(-0.20, 0.48, dot(normalize(vWorldNormal), normalize(uSunDirection)));
+          vec3 nightBlue = vec3(0.055, 0.24, 0.58);
+          vec3 dayCyan = vec3(0.24, 0.72, 1.0);
+          vec3 color = mix(nightBlue, dayCyan, terminator);
+          float alpha = rim * (0.11 + sunFacing * 0.34) * uFade;
+          gl_FragColor = vec4(color * alpha * 1.55, alpha * 0.78);
+        }
+      `
     }), v3(0, 0, 0));
 
     earth.rotation.set(-0.10, -0.85, 0.05);
     cloudShell.rotation.copy(earth.rotation);
     atmosphere.rotation.copy(earth.rotation);
 
-    const moon = sphere('moon', 0.52, new THREE.MeshStandardMaterial({ color: 0xbfc1bd, roughness: 0.96, metalness: 0 }), v3(2.55, 0.82, 1.2));
+    const moon = sphere('moon', 0.37, new THREE.MeshStandardMaterial({
+      map: moonTexture,
+      bumpMap: moonTexture,
+      bumpScale: 0.055,
+      color: 0xc7c8c2,
+      roughness: 0.98,
+      metalness: 0
+    }), v3(2.72, 0.80, 1.35));
 
-    const mercury = sphere('mercury', 0.16, new THREE.MeshStandardMaterial({ color: 0x9a8f82, roughness: 1 }), v3(-3.3, -0.55, 12));
-    const venus = sphere('venus', 0.42, new THREE.MeshStandardMaterial({ color: 0xd8a563, roughness: 0.9, emissive: 0x2d1906, emissiveIntensity: 0.08 }), v3(4.5, 0.95, 5));
-    const mars = sphere('mars', 0.34, new THREE.MeshStandardMaterial({ color: 0xc76545, roughness: 0.95 }), v3(-5.8, -0.35, -8));
+    const mercury = sphere('mercury', 0.36, new THREE.MeshStandardMaterial({ map: mercuryMap, bumpMap: mercuryMap, bumpScale: 0.018, roughness: 1 }), v3(-3.0, -0.88, 10.5));
+    const venus = sphere('venus', 0.66, new THREE.MeshStandardMaterial({ map: venusSurfaceMap, color: 0xd99548, roughness: 0.94 }), v3(4.0, 1.18, 17.2));
+    const venusClouds = sphere('venus-clouds', 0.678, new THREE.MeshStandardMaterial({ map: venusCloudMap, transparent: true, opacity: 0, roughness: 0.96, depthWrite: false }), venus.position.clone());
+    const venusGlow = createRimShell('venus-atmosphere', 0.72, 0xffbd65, 0.13, venus.position);
+    const mars = sphere('mars', 0.54, new THREE.MeshStandardMaterial({ map: marsMap, bumpMap: marsMap, bumpScale: 0.012, color: 0xe48455, roughness: 0.97 }), v3(-6.3, 0.22, 27.0));
+    const marsGlow = createRimShell('mars-atmosphere', 0.574, 0xff704b, 0.055, mars.position);
 
-    const jupiter = sphere('jupiter', 4.6, new THREE.MeshStandardMaterial({ map: jupiterTexture, roughness: 0.92, metalness: 0.0, emissive: 0x1c0d05, emissiveIntensity: 0.012 }), v3(7.0, -1.15, 44));
+    const jupiter = sphere('jupiter', 4.6, new THREE.MeshStandardMaterial({ map: jupiterVoyagerMap, emissiveMap: jupiterVoyagerMap, roughness: 0.91, metalness: 0.0, emissive: 0x5c4030, emissiveIntensity: 0.32 }), v3(9.5, -1.20, 47));
     const jupiterBands = new THREE.Group();
     jupiter.add(jupiterBands);
     for (let i = -5; i <= 5; i++) {
@@ -2131,33 +2516,58 @@
 
     const jupiterGlow = sphere('jupiter-atmosphere', 4.78, new THREE.MeshBasicMaterial({ color: 0xd9ad7d, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false }), jupiter.position.clone());
 
-    const saturn = sphere('saturn', 4.15, new THREE.MeshStandardMaterial({ map: saturnTexture, roughness: 0.88, metalness: 0.0, emissive: 0x171006, emissiveIntensity: 0.0125 }), v3(-6.8, 0.95, 92));
+    const saturn = sphere('saturn', 4.15, new THREE.MeshStandardMaterial({ map: saturnTexture, emissiveMap: saturnTexture, roughness: 0.88, metalness: 0.0, emissive: 0x59472d, emissiveIntensity: 0.11 }), v3(-8.6, 1.05, 86));
     const saturnGlow = sphere('saturn-atmosphere', 4.36, new THREE.MeshBasicMaterial({ color: 0xf2d59a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, side: THREE.BackSide, depthWrite: false }), saturn.position.clone());
-    const saturnRingGeo = new THREE.RingGeometry(5.7, 9.2, 256);
-    const saturnRingMat = new THREE.MeshBasicMaterial({ map: saturnRingTexture, color: 0xffffff, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false });
+    const saturnRingGeo = new THREE.RingGeometry(5.55, 9.05, 256);
+    const saturnRingMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uOpacity: { value: 0 }
+      },
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      depthTest: true,
+      vertexShader: `
+        varying float vRingRadius;
+        void main() {
+          vRingRadius = length(position.xy);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying float vRingRadius;
+        uniform float uOpacity;
+        void main() {
+          float r = clamp((vRingRadius - 5.55) / 3.50, 0.0, 1.0);
+          float edge = smoothstep(0.0, 0.055, r) * (1.0 - smoothstep(0.94, 1.0, r));
+          float cassini = 1.0 - (smoothstep(0.555, 0.575, r) * (1.0 - smoothstep(0.625, 0.645, r)));
+          float innerGap = 1.0 - 0.72 * (smoothstep(0.255, 0.27, r) * (1.0 - smoothstep(0.305, 0.32, r)));
+          float fineBands = 0.82 + 0.12 * sin(r * 118.0) + 0.06 * sin(r * 263.0);
+          vec3 warmIce = mix(vec3(0.50, 0.43, 0.31), vec3(0.88, 0.79, 0.61), 0.34 + r * 0.52);
+          float alpha = edge * cassini * innerGap * fineBands * uOpacity;
+          if (alpha < 0.012) discard;
+          gl_FragColor = vec4(warmIce, alpha);
+        }
+      `
+    });
     const saturnRing = new THREE.Mesh(saturnRingGeo, saturnRingMat);
     saturnRing.rotation.set(Math.PI / 2.15, 0.08, -0.18);
+    saturn.renderOrder = 0;
+    saturnRing.renderOrder = 1;
     saturn.add(saturnRing);
 
-    const saturnRingShadowMap = textureFromCanvas(createRingShadowCanvas());
-    const saturnRingShadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(11.2, 3.1),
-      new THREE.MeshBasicMaterial({
-        map: saturnRingShadowMap,
-        transparent: true,
-        opacity: 0,
-        depthWrite: false,
-        blending: THREE.MultiplyBlending,
-        side: THREE.DoubleSide
-      })
-    );
-    saturnRingShadow.rotation.copy(saturnRing.rotation);
-    saturnRingShadow.position.set(-0.55, -0.05, 0.16);
-    saturn.add(saturnRingShadow);
+    const uranus = sphere('uranus', 1.12, new THREE.MeshStandardMaterial({ map: uranusMap, emissiveMap: uranusMap, color: 0xb1f2ef, emissive: 0x24555b, emissiveIntensity: 0.10, roughness: 0.90 }), v3(7.8, -0.72, 128));
+    uranus.rotation.z = 1.68;
+    const uranusGlow = createRimShell('uranus-atmosphere', 1.20, 0x76e6f1, 0.095, uranus.position);
+    const uranusRing = new THREE.Mesh(new THREE.RingGeometry(1.42, 1.72, 160), new THREE.MeshBasicMaterial({ color: 0xa6e8ea, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+    uranusRing.rotation.set(Math.PI / 2.05, 0.18, 1.47);
+    uranus.add(uranusRing);
 
-    const uranus = sphere('uranus', 0.70, new THREE.MeshStandardMaterial({ color: 0x88d7df, roughness: 0.88 }), v3(4.6, -0.48, -170));
-    const neptune = sphere('neptune', 0.72, new THREE.MeshStandardMaterial({ color: 0x4568dd, roughness: 0.86, emissive: 0x07164d, emissiveIntensity: 0.08 }), v3(-4.9, 0.36, -220));
-    const pluto = sphere('pluto-dwarf', 0.18, new THREE.MeshStandardMaterial({ color: 0xc6b29f, roughness: 1 }), v3(2.3, -0.82, -285));
+    const neptune = sphere('neptune', 1.18, new THREE.MeshStandardMaterial({ map: neptuneMap, emissiveMap: neptuneMap, color: 0x5b8fff, roughness: 0.87, emissive: 0x163c88, emissiveIntensity: 0.13 }), v3(-8.4, 0.52, 168));
+    const neptuneGlow = createRimShell('neptune-atmosphere', 1.27, 0x3c72ff, 0.13, neptune.position);
+    const pluto = sphere('pluto-dwarf', 0.48, new THREE.MeshStandardMaterial({ map: plutoMap, bumpMap: plutoMap, bumpScale: 0.018, color: 0xe4c4a5, roughness: 1 }), v3(3.8, -0.92, 205));
+    const plutoGlow = createRimShell('pluto-frost-halo', 0.515, 0xb9d7ff, 0.045, pluto.position);
 
     const planetMeshes = [mercury, venus, mars, jupiter, saturn, uranus, neptune, pluto];
 
@@ -2173,6 +2583,7 @@
       return sun;
     }
     const sun = makeSun();
+    const starPointTexture = textureFromCanvas(createRadialCanvas('rgba(255,255,255,1)'));
 
     function createStars(count, spread, depth, size, opacity, seedOffset) {
       const positions = new Float32Array(count * 3);
@@ -2196,7 +2607,17 @@
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      const material = new THREE.PointsMaterial({ size, vertexColors: true, transparent: true, opacity, sizeAttenuation: true, depthWrite: false });
+      const material = new THREE.PointsMaterial({
+        size,
+        map: starPointTexture,
+        alphaTest: 0.008,
+        vertexColors: true,
+        transparent: true,
+        opacity,
+        sizeAttenuation: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      });
       const stars = new THREE.Points(geometry, material);
       scene.add(stars);
       return stars;
@@ -2206,33 +2627,21 @@
     const starsMid = createStars(isMobile ? 900 : 1400, 320, 740, 0.060, 0.42, 2);
     const starsFar = createStars(isMobile ? 1200 : 1800, 620, 1200, 0.085, 0.28, 3);
 
-    const speedStreaks = makeSpeedStreaks(isMobile ? 18 : 30);
-    speedStreaks.visible = !reduceMotion;
+    // Keep the star field dimensional without drawing trajectory streaks.
+    const speedStreaks = new THREE.Group();
+    speedStreaks.visible = false;
     camera.add(speedStreaks);
 
     const dustPlane = new THREE.Group();
+    dustPlane.visible = false;
     scene.add(dustPlane);
-    for (let i = 0; i < 3; i++) {
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(36 + i * 12, 36.25 + i * 12, 260),
-        new THREE.MeshBasicMaterial({ color: 0xadc8ff, transparent: true, opacity: 0.009 - i * 0.002, side: THREE.DoubleSide, depthWrite: false })
-      );
-      ring.position.set(-7, -1.2, -210 - i * 36);
-      ring.rotation.set(Math.PI / 2.34, 0, -0.48);
-      dustPlane.add(ring);
-    }
 
     const storyGroup = new THREE.Group();
     scene.add(storyGroup);
 
     const originPulse = new THREE.Group();
+    originPulse.visible = false;
     storyGroup.add(originPulse);
-    for (let i = 0; i < 4; i++) {
-      const ring = createPulseRing(2.34 + i * 0.42, i % 2 ? 0x7bbcff : 0xffffff, 0);
-      ring.rotation.set(Math.PI / 2.18, 0.08, -0.34 + i * 0.08);
-      ring.userData.offset = i * 0.18;
-      originPulse.add(ring);
-    }
 
     const routeGroup = new THREE.Group();
     routeGroup.visible = false;
@@ -2323,24 +2732,28 @@
     const cameraKeys = [
       { p: 0.00, pos: v3(1.05, 0.68, 4.95), look: v3(-0.38, -0.13, 0.05), fov: 42 },
       { p: 0.10, pos: v3(1.15, 0.58, 6.0), look: v3(-0.20, -0.08, -0.05), fov: 42 },
-      { p: 0.24, pos: v3(2.4, 0.85, 15), look: v3(2.55, 0.55, 1.2), fov: 48 },
-      { p: 0.38, pos: v3(-1.5, 0.45, 31), look: v3(3.2, -0.20, 7), fov: 54 },
-      { p: 0.50, pos: v3(8.8, 1.22, 62), look: v3(2.2, -0.48, 48), fov: 68 },
-      { p: 0.60, pos: v3(-7.2, 0.58, 84), look: v3(-1.2, -0.80, 62), fov: 68 },
-      { p: 0.70, pos: v3(-11.0, 1.16, 116), look: v3(-2.6, 0.92, 94), fov: 62 },
-      { p: 0.84, pos: v3(0.8, 0.35, 175), look: v3(-10.0, 0.1, -48), fov: 60 },
-      { p: 0.92, pos: v3(8.8, 0.58, 236), look: v3(-40.0, 4.6, -216), fov: 58 },
-      { p: 1.00, pos: v3(1.8, 0.22, 314), look: v3(-34.0, 3.8, -228), fov: 61 }
+      { p: 0.20, pos: v3(2.35, 0.92, 12.5), look: v3(2.25, 0.62, 1.15), fov: 47 },
+      { p: 0.32, pos: v3(-1.8, 0.55, 24), look: v3(1.4, 0.18, 16), fov: 52 },
+      { p: 0.40, pos: v3(4.6, 1.0, 36), look: v3(-3.4, -0.15, 25), fov: 58 },
+      { p: 0.50, pos: v3(13.2, 1.7, 62), look: v3(2.2, -0.55, 48), fov: 64 },
+      { p: 0.62, pos: v3(-12.2, 1.25, 97), look: v3(-1.4, 0.12, 83), fov: 62 },
+      { p: 0.72, pos: v3(9.2, 0.72, 133), look: v3(6.0, -0.38, 128), fov: 57 },
+      { p: 0.80, pos: v3(-10.6, 0.65, 175), look: v3(-7.0, 0.28, 168), fov: 57 },
+      { p: 0.88, pos: v3(5.0, 0.35, 210), look: v3(3.8, -0.75, 205), fov: 54 },
+      { p: 0.92, pos: v3(8.8, 0.58, 236), look: v3(4.0, 3.8, -120), fov: 58 },
+      { p: 1.00, pos: v3(1.8, 0.22, 314), look: v3(-10.0, 3.0, -170), fov: 60 }
     ];
 
     const beatLabels = [
       { p: 0.00, id: 'near-earth', title: '近地軌道', body: '地球佔滿視野，鏡頭仍貼近大氣層。' },
       { p: 0.14, id: 'leaving-earth', title: '離開地球', body: '地球開始退後，黑暗和星場變得有深度。' },
-      { p: 0.28, id: 'moon-cue', title: '月球擦過', body: '月球和太陽光方向提供第一個尺度感。' },
-      { p: 0.42, id: 'inner-system', title: '內行星掠影', body: '行星不排隊，只在深度裡短暫被看見。' },
-      { p: 0.58, id: 'giants', title: '巨行星尺度', body: '木星和土星以視差掠過，畫面開始有重量。' },
-      { p: 0.76, id: 'outer-dark', title: '外太陽系', body: '光線變冷，遠方只剩少量行星和星塵。' },
-      { p: 0.92, id: 'galaxy-formation', title: '銀河成形', body: '終點是一個旋轉銀河核心，由粒子慢慢聚成旋臂。' }
+      { p: 0.24, id: 'inner-scatter', title: '內行星掠影', body: '水星、金星和火星在不同深度短暫交錯。' },
+      { p: 0.42, id: 'jupiter-encounter', title: '木星遭遇', body: 'Voyager 雲帶與大紅斑從鏡頭側面掠過。' },
+      { p: 0.55, id: 'saturn-encounter', title: '土星穿環', body: '環系切過光線，第一次真正感到巨行星尺度。' },
+      { p: 0.68, id: 'uranus-encounter', title: '天王星傾軸', body: '冷青色大氣與傾斜環面建立外太陽系氣候。' },
+      { p: 0.76, id: 'neptune-encounter', title: '海王星風暴', body: '深藍甲烷大氣與暗斑在遠日光下浮現。' },
+      { p: 0.84, id: 'pluto-farewell', title: '冥王星遠別', body: 'New Horizons 冰原成為銀河前最後一個世界。' },
+      { p: 0.91, id: 'galaxy-formation', title: '銀河成形', body: '九星體旅程退入深場，銀河接管最後畫面。' }
     ];
 
     function interpolateCamera(progress) {
@@ -2391,6 +2804,8 @@
       renderer.setSize(w, h, false);
       shaderWakeUniforms.uResolution.value.set(w * dpr, h * dpr);
       shaderWakeUniforms.uMobile.value = w < 760 ? 1 : 0;
+      spaceBackdropUniforms.uResolution.value.set(w * dpr, h * dpr);
+      spaceBackdropUniforms.uMobile.value = w < 760 ? 1 : 0;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     }
@@ -2414,6 +2829,7 @@
       meteorVelocityTarget: 0,
       lastScrollY: window.scrollY || 0,
       lastScrollT: performance.now(),
+      lastFrameT: performance.now(),
       lastBeatId: null
     };
 
@@ -2434,19 +2850,23 @@
     const phaseNames = {
       'near-earth': ['near earth', 'signal waking'],
       'leaving-earth': ['leaving earth', 'orbit opening'],
-      'moon-cue': ['moon pass', 'scale aligning'],
-      'inner-system': ['inner system', 'light turning'],
-      'giants': ['giant worlds', 'mass passing'],
-      'outer-dark': ['outer dark', 'field cooling'],
+      'inner-scatter': ['inner worlds', 'parallax crossing'],
+      'jupiter-encounter': ['jupiter', 'storm bands rising'],
+      'saturn-encounter': ['saturn rings', 'ring plane crossing'],
+      'uranus-encounter': ['uranus', 'axis turning'],
+      'neptune-encounter': ['neptune', 'storm field'],
+      'pluto-farewell': ['pluto', 'last world'],
       'galaxy-formation': ['deep field', 'arrival locked']
     };
     const phasePalettes = {
       'near-earth': ['96, 187, 255', '255, 228, 170', '55, 118, 255', '.70'],
       'leaving-earth': ['116, 207, 255', '255, 220, 150', '64, 142, 255', '.78'],
-      'moon-cue': ['184, 224, 255', '255, 236, 190', '112, 158, 255', '.74'],
-      'inner-system': ['135, 221, 255', '255, 200, 118', '88, 168, 255', '.88'],
-      'giants': ['156, 206, 255', '255, 183, 116', '116, 130, 255', '.84'],
-      'outer-dark': ['126, 171, 255', '218, 196, 255', '70, 100, 210', '.76'],
+      'inner-scatter': ['135, 221, 255', '255, 200, 118', '88, 168, 255', '.88'],
+      'jupiter-encounter': ['230, 194, 156', '255, 156, 92', '116, 130, 255', '.90'],
+      'saturn-encounter': ['230, 210, 166', '255, 186, 116', '116, 130, 255', '.88'],
+      'uranus-encounter': ['116, 230, 235', '211, 248, 244', '68, 144, 190', '.78'],
+      'neptune-encounter': ['82, 134, 255', '190, 222, 255', '54, 68, 190', '.82'],
+      'pluto-farewell': ['196, 216, 242', '232, 195, 160', '90, 106, 176', '.68'],
       'galaxy-formation': ['178, 146, 255', '255, 196, 156', '98, 86, 210', '.92']
     };
     function updateSiteProgressVisual(progress, beat) {
@@ -2552,64 +2972,107 @@
       if (event.key === 'End') setTarget(1);
     });
 
+    const mercuryBase = mercury.position.clone();
+    const venusBase = venus.position.clone();
+    const marsBase = mars.position.clone();
     const jupiterBase = jupiter.position.clone();
     const saturnBase = saturn.position.clone();
-    const jupiterGlowBase = jupiterGlow.position.clone();
-    const saturnGlowBase = saturnGlow.position.clone();
+    const uranusBase = uranus.position.clone();
+    const neptuneBase = neptune.position.clone();
+    const plutoBase = pluto.position.clone();
 
     function updateCinematicMotion(progress) {
-      const jFly = smooth(0.43, 0.56, progress) * (1 - smooth(0.66, 0.78, progress));
-      const sFly = smooth(0.60, 0.72, progress) * (1 - smooth(0.82, 0.92, progress));
-      const jArc = Math.sin(jFly * Math.PI);
-      const sArc = Math.sin(sFly * Math.PI);
+      const innerEncounter = planetFade(progress, 0.24, 0.30, 0.40, 0.46);
+      const jFly = planetFade(progress, 0.39, 0.45, 0.54, 0.60);
+      const sFly = planetFade(progress, 0.53, 0.58, 0.66, 0.72);
+      const uFly = planetFade(progress, 0.66, 0.70, 0.75, 0.80);
+      const nFly = planetFade(progress, 0.75, 0.79, 0.83, 0.88);
+      const pFly = planetFade(progress, 0.83, 0.86, 0.89, 0.93);
+
+      mercury.position.set(mercuryBase.x - innerEncounter * 0.55, mercuryBase.y + innerEncounter * 0.18, mercuryBase.z);
+      mercury.scale.setScalar((isMobile ? 1.08 : 1.0) + innerEncounter * 0.18);
+      venus.position.set(venusBase.x - innerEncounter * 1.05, venusBase.y + innerEncounter * 0.22, venusBase.z);
+      venus.scale.setScalar((isMobile ? 1.04 : 1.0) + innerEncounter * 0.30);
+      mars.position.set(marsBase.x + innerEncounter * 1.20, marsBase.y - innerEncounter * 0.22, marsBase.z);
+      mars.scale.setScalar((isMobile ? 1.08 : 1.0) + innerEncounter * 0.28);
+      venusClouds.position.copy(venus.position); venusClouds.scale.copy(venus.scale);
+      venusGlow.position.copy(venus.position); venusGlow.scale.copy(venus.scale);
+      marsGlow.position.copy(mars.position); marsGlow.scale.copy(mars.scale);
 
       jupiter.position.set(
-        mix(jupiterBase.x, -11.2, jFly),
-        mix(jupiterBase.y, -2.35, jFly) + jArc * 0.95,
-        mix(jupiterBase.z, 55, jFly)
+        mix(jupiterBase.x, 7.8, jFly),
+        mix(jupiterBase.y, -0.9, jFly),
+        mix(jupiterBase.z, 49.0, jFly)
       );
-      const jScale = 1 + jArc * 0.34;
+      const jScale = (isMobile ? 0.14 : 0.16) + jFly * (isMobile ? 0.025 : 0.03);
       jupiter.scale.setScalar(jScale);
       jupiterGlow.position.copy(jupiter.position);
       jupiterGlow.scale.setScalar(jScale);
-      redSpot.visible = progress > 0.47 && progress < 0.72;
+      redSpot.visible = progress > 0.42 && progress < 0.59;
 
       saturn.position.set(
-        mix(saturnBase.x, isMobile ? -2.4 : 5.6, sFly),
-        mix(saturnBase.y, 1.55, sFly) - sArc * 0.55,
-        mix(saturnBase.z, 101, sFly)
+        mix(saturnBase.x, isMobile ? 1.8 : 0.8, sFly),
+        mix(saturnBase.y, 0.72, sFly),
+        mix(saturnBase.z, 83.0, sFly)
       );
-      const sBaseScale = isMobile ? 0.66 : 1;
-      const sScale = sBaseScale + sArc * (isMobile ? 0.10 : 0.18);
+      const sScale = (isMobile ? 0.40 : 0.58) + sFly * (isMobile ? 0.08 : 0.16);
       saturn.scale.setScalar(sScale);
       saturnGlow.position.copy(saturn.position);
       saturnGlow.scale.setScalar(sScale);
-      saturn.rotation.z = -0.10 + sArc * 0.18;
+      saturn.rotation.z = -0.12 + sFly * 0.22;
 
-      const streakWindow = (1 - smooth(0.78, 0.88, progress));
-      const finalArrivalPulse = smooth(0.78, 0.91, progress) * (1 - smooth(0.955, 1.0, progress));
-      const finalArrivalRest = smooth(0.78, 0.985, progress);
-      const flyby = Math.max(jArc, sArc * 0.88, finalArrivalPulse * 0.58);
+      uranus.position.set(
+        mix(uranusBase.x, isMobile ? 7.6 : 7.3, uFly),
+        mix(uranusBase.y, isMobile ? -2.2 : -0.42, uFly),
+        uranusBase.z
+      );
+      const uScale = (isMobile ? 0.46 : 0.72) + uFly * (isMobile ? 0.05 : 0.14);
+      uranus.scale.setScalar(uScale);
+      uranusGlow.position.copy(uranus.position); uranusGlow.scale.setScalar(uScale);
+      uranus.rotation.z = 1.68 + uFly * 0.10;
+
+      neptune.position.set(mix(neptuneBase.x, -6.2, nFly), mix(neptuneBase.y, 0.25, nFly), neptuneBase.z);
+      const nScale = (isMobile ? 0.65 : 0.78) + nFly * (isMobile ? 0.10 : 0.16);
+      neptune.scale.setScalar(nScale);
+      neptuneGlow.position.copy(neptune.position); neptuneGlow.scale.setScalar(nScale);
+
+      pluto.position.set(mix(plutoBase.x, isMobile ? 5.2 : 4.5, pFly), plutoBase.y + pFly * 0.14, plutoBase.z);
+      const pScale = (isMobile ? 0.78 : 0.90) + pFly * (isMobile ? 0.14 : 0.20);
+      pluto.scale.setScalar(pScale);
+      plutoGlow.position.copy(pluto.position); plutoGlow.scale.setScalar(pScale);
+
+      const finalArrivalPulse = smooth(0.86, 0.94, progress) * (1 - smooth(0.97, 1.0, progress));
+      const finalArrivalRest = smooth(0.86, 0.985, progress);
+      const flyby = Math.max(innerEncounter * 0.32, jFly, sFly * 0.92, uFly * 0.45, nFly * 0.55, finalArrivalPulse * 0.48);
       speedStreaks.children.forEach((sprite, i) => {
         const depth = ((sprite.userData.phase + progress * 2.4 + i * 0.013) % 1);
         sprite.position.z = -4 - depth * 44;
         sprite.position.x = sprite.userData.baseX * (1 + flyby * 0.34);
         sprite.position.y = sprite.userData.baseY + Math.sin(progress * 9 + i) * 0.12 * flyby;
-        sprite.material.opacity = reduceMotion ? 0 : (flyby * 0.32) * (1 - depth * 0.45);
-        sprite.scale.x = (1.9 + depth * 2.8) * (1 + flyby * 0.78);
+        sprite.material.opacity = reduceMotion ? 0 : (flyby * 0.30) * (1 - depth * 0.45);
+        sprite.scale.x = (1.9 + depth * 2.8) * (1 + flyby * 0.72);
         sprite.scale.y = 0.10 + flyby * 0.05;
       });
 
-      return { jupiterFlyby: Number(jFly.toFixed(3)), saturnFlyby: Number(sFly.toFixed(3)), speedStreakIntensity: Number(flyby.toFixed(3)), finalArrival: Number(finalArrivalRest.toFixed(3)) };
+      return {
+        innerEncounter: Number(innerEncounter.toFixed(3)),
+        jupiterEncounter: Number(jFly.toFixed(3)),
+        saturnEncounter: Number(sFly.toFixed(3)),
+        uranusEncounter: Number(uFly.toFixed(3)),
+        neptuneEncounter: Number(nFly.toFixed(3)),
+        plutoFarewell: Number(pFly.toFixed(3)),
+        speedStreakIntensity: Number(flyby.toFixed(3)),
+        finalArrival: Number(finalArrivalRest.toFixed(3))
+      };
     }
 
-    let cinematicState = { jupiterFlyby: 0, saturnFlyby: 0, speedStreakIntensity: 0, finalArrival: 0 };
+    let cinematicState = { innerEncounter: 0, jupiterEncounter: 0, saturnEncounter: 0, uranusEncounter: 0, neptuneEncounter: 0, plutoFarewell: 0, speedStreakIntensity: 0, finalArrival: 0 };
 
     function updateStorySignals(progress) {
       const launch = smooth(0.05, 0.24, progress) * (1 - smooth(0.34, 0.48, progress));
       const routing = smooth(0.18, 0.46, progress) * (1 - smooth(0.66, 0.82, progress));
       const scaleBeat = smooth(0.42, 0.62, progress) * (1 - smooth(0.82, 0.94, progress));
-      originPulse.visible = progress < 0.48;
+      originPulse.visible = false;
       originPulse.position.copy(earth.position);
       originPulse.rotation.z = -0.18 + progress * 0.38;
       originPulse.children.forEach((ring, i) => {
@@ -2639,37 +3102,37 @@
         packet.scale.setScalar(1.0 + Math.max(0, pulse) * 0.72);
         if (visible && packet.material.opacity > 0.05) activePackets++;
       });
-      const galaxy = smooth(0.72, 0.98, progress);
+      const galaxy = smooth(0.86, 0.98, progress);
       const birth = Math.max(0, Math.sin(galaxy * Math.PI));
-      const arrival = smooth(0.78, 0.96, progress);
+      const arrival = smooth(0.87, 0.96, progress);
       galaxySystem.visible = galaxy > 0.015;
       galaxySystem.position.set(
-        mix(galaxyBasePosition.x - (isMobile ? 18 : 46), isMobile ? 58 : -104, arrival),
-        mix(galaxyBasePosition.y + (isMobile ? 8 : 7), isMobile ? -46 : -18, arrival),
-        mix(galaxyBasePosition.z - 76, isMobile ? -222 : -220, arrival)
+        mix(galaxyBasePosition.x - (isMobile ? 18 : 46), isMobile ? 18 : 38, arrival),
+        mix(galaxyBasePosition.y + (isMobile ? 8 : 7), isMobile ? -4 : 4, arrival),
+        mix(galaxyBasePosition.z - 76, isMobile ? -108 : -120, arrival)
       );
       galaxySystem.rotation.z = -0.72 + galaxy * 1.06 + progress * 0.095;
       galaxySystem.rotation.x = 0.34 - galaxy * 0.14;
       galaxySystem.rotation.y = -0.18 + Math.sin(progress * Math.PI) * 0.045 + arrival * 0.08;
-      galaxySystem.scale.setScalar((isMobile ? 0.80 : 0.86) + galaxy * (isMobile ? 1.18 : 1.68) + birth * 0.04);
-      galaxyPaint.material.opacity = galaxy * (isMobile ? 0.86 + birth * 0.03 : 0.88 + birth * 0.03);
+      galaxySystem.scale.setScalar((isMobile ? 0.78 : 0.82) + galaxy * (isMobile ? 0.42 : 0.62) + birth * 0.04);
+      galaxyPaint.material.opacity = galaxy * (isMobile ? 0.96 : 0.98);
       galaxyPaint.material.rotation = -0.16 + galaxy * 0.06;
-      galaxyPaint.scale.set((isMobile ? 122 : 176) * (0.92 + galaxy * 0.16), (isMobile ? 46 : 66) * (0.92 + galaxy * 0.10), 1);
+      galaxyPaint.scale.set((isMobile ? 134 : 184) * (0.92 + galaxy * 0.16), (isMobile ? 54 : 74) * (0.92 + galaxy * 0.10), 1);
       galaxyPoints.material.opacity = 0;
       galaxyPoints.material.size = (isMobile ? 0.22 : 0.26);
-      galaxyDust.material.opacity = galaxy * (0.030 + birth * 0.020);
+      galaxyDust.material.opacity = galaxy * (0.070 + birth * 0.025);
       galaxyDust.material.size = (isMobile ? 0.24 : 0.30) + galaxy * 0.06;
-      galaxyCore.material.opacity = galaxy * (0.060 + birth * 0.035);
+      galaxyCore.material.opacity = galaxy * (0.145 + birth * 0.045);
       galaxyCore.scale.setScalar(0.34 + galaxy * 0.42 + birth * 0.06);
-      galaxyCoreHalo.material.opacity = galaxy * (0.018 + birth * 0.012);
+      galaxyCoreHalo.material.opacity = galaxy * (0.052 + birth * 0.018);
       galaxyCoreHalo.scale.setScalar(0.44 + galaxy * 0.46 + birth * 0.05);
-      galaxyBlueCore.material.opacity = galaxy * (0.014 + birth * 0.010);
+      galaxyBlueCore.material.opacity = galaxy * (0.036 + birth * 0.012);
       galaxyBlueCore.scale.setScalar(0.48 + galaxy * 0.42);
-      galaxyDisk.material.opacity = galaxy * (0.024 + birth * 0.014);
+      galaxyDisk.material.opacity = galaxy * (0.062 + birth * 0.018);
       galaxyDisk.material.rotation = -0.20 + galaxy * 0.20;
-      galaxyArmMistA.material.opacity = galaxy * (0.018 + birth * 0.012);
+      galaxyArmMistA.material.opacity = galaxy * (0.046 + birth * 0.014);
       galaxyArmMistA.material.rotation = 0.36 - galaxy * 0.20;
-      galaxyArmMistB.material.opacity = galaxy * (0.016 + birth * 0.010);
+      galaxyArmMistB.material.opacity = galaxy * (0.040 + birth * 0.012);
       galaxyArmMistB.material.rotation = -0.56 + galaxy * 0.30;
       storyGroup.rotation.y = progress * 0.025;
       return {
@@ -2687,52 +3150,74 @@
 
 
     function updateVisibility(progress) {
-      earth.visible = progress < 0.58;
-      cloudShell.visible = progress < 0.52 && cloudTextureLoaded;
-      atmosphere.visible = progress < 0.50;
-      moon.visible = progress > 0.10 && progress < 0.46;
-      mercury.visible = progress > 0.26 && progress < 0.58;
-      venus.visible = progress > 0.28 && progress < 0.60;
-      mars.visible = progress > 0.31 && progress < 0.62;
-      jupiter.visible = progress > 0.40 && progress < 0.74;
+      earth.visible = progress < 0.40;
+      cloudShell.visible = progress < 0.36 && cloudTextureLoaded;
+      atmosphere.visible = progress < 0.36;
+      moon.visible = progress > 0.08 && progress < 0.31;
+      mercury.visible = progress > 0.20 && progress < 0.46;
+      venus.visible = progress > 0.23 && progress < 0.49;
+      venusClouds.visible = venus.visible;
+      venusGlow.visible = venus.visible;
+      mars.visible = progress > 0.27 && progress < 0.52;
+      marsGlow.visible = mars.visible;
+      jupiter.visible = progress > 0.37 && progress < 0.63;
       jupiterGlow.visible = jupiter.visible;
-      saturn.visible = progress > 0.52 && progress < 0.88;
+      saturn.visible = progress > 0.50 && progress < 0.75;
       saturnGlow.visible = saturn.visible;
-      uranus.visible = progress > 0.66;
-      neptune.visible = progress > 0.70;
-      pluto.visible = progress > 0.82;
-      dustPlane.visible = progress > 0.64;
-      sun.visible = progress > 0.22;
+      uranus.visible = progress > 0.63 && progress < 0.83;
+      uranusGlow.visible = uranus.visible;
+      neptune.visible = progress > 0.72 && progress < 0.91;
+      neptuneGlow.visible = neptune.visible;
+      pluto.visible = progress > 0.81 && progress < 0.95;
+      plutoGlow.visible = pluto.visible;
+      dustPlane.visible = false;
+      const solarFade = 1 - smooth(0.74, 0.84, progress);
+      sun.visible = progress > 0.18 && solarFade > 0.001;
+      sun.children[0].material.opacity = 0.24 * solarFade;
+      sun.children[1].material.opacity = 0.34 * solarFade;
 
-      const fadeEarth = 1 - smooth(0.38, 0.58, progress);
+      const fadeEarth = 1 - smooth(0.22, 0.40, progress);
       earth.material.opacity = fadeEarth;
       earth.material.transparent = fadeEarth < 0.99;
-      cloudShell.material.opacity = 0.34 * fadeEarth;
-      atmosphere.material.opacity = 0.105 * fadeEarth;
+      cloudShell.material.opacity = 0.38 * fadeEarth;
+      atmosphereUniforms.uFade.value = fadeEarth;
 
-      const innerFade = smooth(0.30, 0.42, progress) * (1 - smooth(0.54, 0.64, progress)) * 0.74;
-      mercury.material.opacity = innerFade;
-      venus.material.opacity = innerFade;
-      mars.material.opacity = innerFade;
+      const mercuryFade = planetFade(progress, 0.20, 0.27, 0.38, 0.46);
+      const venusFade = planetFade(progress, 0.23, 0.30, 0.41, 0.49);
+      const marsFade = planetFade(progress, 0.27, 0.34, 0.44, 0.52);
+      mercury.material.opacity = mercuryFade;
+      venus.material.opacity = venusFade;
+      venusClouds.material.opacity = venusFade * 0.88;
+      venusGlow.material.opacity = venusFade * venusGlow.userData.baseOpacity;
+      mars.material.opacity = marsFade;
+      marsGlow.material.opacity = marsFade * marsGlow.userData.baseOpacity;
       [mercury, venus, mars].forEach((m) => { m.material.transparent = true; });
 
-      jupiter.material.opacity = smooth(0.40, 0.50, progress) * (1 - smooth(0.68, 0.78, progress));
+      const jupiterFade = planetFade(progress, 0.37, 0.44, 0.55, 0.63);
+      const saturnFade = planetFade(progress, 0.50, 0.57, 0.67, 0.75);
+      jupiter.material.opacity = jupiterFade;
       jupiter.material.transparent = true;
-      jupiterGlow.material.opacity = 0.085 * jupiter.material.opacity;
-      saturn.material.opacity = smooth(0.52, 0.64, progress) * (1 - smooth(0.82, 0.92, progress));
+      jupiterGlow.material.opacity = 0.085 * jupiterFade;
+      saturn.material.opacity = saturnFade;
       saturn.material.transparent = true;
-      saturnGlow.material.opacity = 0.075 * saturn.material.opacity;
-      saturnRing.material.opacity = 0.38 * saturn.material.opacity;
-      saturnRingShadow.material.opacity = 0.36 * saturn.material.opacity;
+      saturnGlow.material.opacity = 0.11 * saturnFade;
+      saturnRing.material.uniforms.uOpacity.value = (isMobile ? 0.72 : 0.82) * saturnFade;
 
-      uranus.material.opacity = smooth(0.66, 0.80, progress);
-      neptune.material.opacity = smooth(0.70, 0.86, progress);
-      pluto.material.opacity = smooth(0.82, 0.98, progress) * 0.68;
+      const uranusFade = planetFade(progress, 0.63, 0.69, 0.76, 0.83);
+      const neptuneFade = planetFade(progress, 0.72, 0.78, 0.84, 0.91);
+      const plutoFade = planetFade(progress, 0.81, 0.86, 0.90, 0.95);
+      uranus.material.opacity = uranusFade;
+      neptune.material.opacity = neptuneFade;
+      pluto.material.opacity = plutoFade;
       [uranus, neptune, pluto].forEach((m) => { m.material.transparent = true; });
+      uranusGlow.material.opacity = uranusFade * uranusGlow.userData.baseOpacity;
+      neptuneGlow.material.opacity = neptuneFade * neptuneGlow.userData.baseOpacity;
+      plutoGlow.material.opacity = plutoFade * plutoGlow.userData.baseOpacity;
+      uranusRing.material.opacity = uranusFade * (isMobile ? 0.18 : 0.28);
 
-      const deep = smooth(0.58, 1.0, progress);
+      const deep = smooth(0.62, 1.0, progress);
       const farDeep = smooth(0.74, 1.0, progress);
-      const arrival = smooth(0.78, 0.98, progress);
+      const arrival = smooth(0.86, 0.98, progress);
       const calm = 1 - smooth(0.96, 1.0, progress) * 0.18;
       galacticHaze.material.opacity = 0.085 * deep * calm;
       deepNebulaA.material.opacity = 0.13 * deep * calm;
@@ -2741,7 +3226,7 @@
       deepFieldWarm.material.opacity = 0.13 * smooth(0.86, 1.0, progress);
       finalDustLane.material.opacity = (isMobile ? 0.38 : 0.30) * arrival;
       finalVeil.material.opacity = (isMobile ? 0.22 : 0.16) * arrival;
-      farSolarGlow.material.opacity = 0.035 + 0.10 * farDeep;
+      farSolarGlow.material.opacity = ((isMobile ? 0.052 : 0.035) + 0.10 * farDeep) * solarFade;
       starsFar.material.opacity = mix(0.22, 0.78, farDeep);
       starsMid.material.opacity = mix(0.40, 0.56, farDeep);
       starsNear.material.opacity = mix(0.72, 0.45, farDeep);
@@ -2765,7 +3250,9 @@
         state.meteorVelocity += (progressDeltaVelocity - state.meteorVelocity) * 0.52;
       }
       if (state.meteorVelocity < 0.002) state.meteorVelocity = 0;
-      const ease = reduceMotion ? 1 : 0.075;
+      const frameDelta = Math.min(250, Math.max(1, now - state.lastFrameT));
+      state.lastFrameT = now;
+      const ease = reduceMotion ? 1 : 1 - Math.exp(-frameDelta / 210);
       state.progress += (state.target - state.progress) * ease;
       state.progress = clamp(state.progress, 0, 1);
       const p = state.progress;
@@ -2773,6 +3260,7 @@
       earth.rotation.y += 0.0015;
       cloudShell.rotation.y += 0.0024;
       moon.rotation.y += 0.001;
+      venusClouds.rotation.y += 0.0018;
       planetMeshes.forEach((planet, i) => {
         planet.rotation.y += 0.0009 + i * 0.00013;
       });
@@ -2780,10 +3268,14 @@
       saturn.rotation.y += 0.0006;
       jupiterGlow.rotation.copy(jupiter.rotation);
       saturnGlow.rotation.copy(saturn.rotation);
+      venusGlow.rotation.copy(venus.rotation);
+      marsGlow.rotation.copy(mars.rotation);
+      neptuneGlow.rotation.copy(neptune.rotation);
+      plutoGlow.rotation.copy(pluto.rotation);
       deepNebulaA.material.rotation = p * 0.055;
       deepNebulaB.material.rotation = -p * 0.045;
       galacticHaze.material.rotation = -0.18 + p * 0.035;
-      const arrivalDrift = smooth(0.78, 1.0, p);
+      const arrivalDrift = smooth(0.86, 1.0, p);
       deepFieldCore.position.set(
         deepFieldCoreBase.x + arrivalDrift * (isMobile ? 18 : 46),
         deepFieldCoreBase.y - arrivalDrift * (isMobile ? 10 : 18),
@@ -2836,14 +3328,26 @@
         earthTextureLoaded,
         cloudTextureLoaded,
         earthNightLoaded,
+        assetStatus,
+        planetMaterialStatus: {
+          mercury: 'MESSENGER-USGS-mosaic',
+          venus: 'Magellan-surface-plus-procedural-clouds',
+          earth: 'day-cloud-night-atmosphere',
+          mars: 'Viking-USGS-mosaic',
+          jupiter: 'Voyager-JPL-mosaic',
+          saturn: 'observation-calibrated-procedural-bands-rings',
+          uranus: 'observation-calibrated-procedural-atmosphere-rings',
+          neptune: 'observation-calibrated-procedural-storm-atmosphere',
+          pluto: 'New-Horizons-USGS-mosaic'
+        },
         fpsEstimate: state.fps,
         cinematicState,
         storyState,
-        storytellingMode: 'orbital-website-scroll-v3-jake-texture',
+        storytellingMode: 'orbital-v6-nine-world-cinematic-journey',
         siteMode: 'cinematic-premium-brand-site',
         siteSections: 5,
         routeArcsVisible: false,
-        visualTexturePass: 'jake-visible-effects-v1',
+        visualTexturePass: 'orbital-nasa-cinematic-v6',
         sceneInstrument: 'shader-light-wake-v2',
         motionLanguage: 'glsl-shader-light-wake-v2',
         shaderWake: {
@@ -2852,9 +3356,9 @@
           velocity: Number(shaderWakeUniforms.uVelocity.value.toFixed(3)),
           features: ['glsl-fbm-turbulent-tail', 'cold-bloom-core', 'warm-dust-debris', 'non-ui-diagonal-path']
         },
-        backgroundRealismPass: 'light-depth-v1',
-        lightingRigVersion: 'solar-contrast-v1',
-        spaceBackdropVersion: 'deep-field-arrival-v4-art-locked',
+        backgroundRealismPass: 'procedural-galactic-depth-v6',
+        lightingRigVersion: 'planetary-mass-atmosphere-v6',
+        spaceBackdropVersion: 'procedural-deep-field-v5',
         animationWorkflow: 'shader-light-wake-v2-production-integration',
         clawTeamReviewApplied: 'orbital-art-20260628-141516',
         toneMappingExposure: renderer.toneMappingExposure,
@@ -2896,16 +3400,17 @@
       earthTextureLoaded,
       cloudTextureLoaded,
       earthNightLoaded,
+      assetStatus,
       fpsEstimate: 0,
       cinematicState,
-      storytellingMode: 'orbital-website-scroll-v3-jake-texture',
+      storytellingMode: 'orbital-v6-nine-world-cinematic-journey',
       siteMode: 'cinematic-premium-brand-site',
       siteSections: 5,
       routeArcsVisible: false,
-      visualTexturePass: 'jake-visible-effects-v1',
+      visualTexturePass: 'orbital-nasa-cinematic-v6',
       sceneInstrument: 'shader-light-wake-v2',
       motionLanguage: 'glsl-shader-light-wake-v2',
-      spaceBackdropVersion: 'deep-field-arrival-v4-art-locked',
+      spaceBackdropVersion: 'procedural-deep-field-v5',
       animationWorkflow: 'shader-light-wake-v2-production-integration',
       reducedMotion: reduceMotion,
       noCards: true,
