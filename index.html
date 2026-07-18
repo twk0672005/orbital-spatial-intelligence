@@ -464,6 +464,26 @@
       font-size: 13px;
     }
 
+    .built-with {
+      margin-top: 26px;
+      font-size: 12px;
+      letter-spacing: .04em;
+      color: rgba(203, 226, 255, .5);
+    }
+
+    .built-with a {
+      color: rgba(168, 214, 255, .85);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(168, 214, 255, .35);
+      transition: color .3s ease, border-color .3s ease;
+    }
+
+    .built-with a:hover,
+    .built-with a:focus-visible {
+      color: #dff0ff;
+      border-bottom-color: rgba(223, 240, 255, .8);
+    }
+
     .signature-line {
       display: none;
       flex-wrap: wrap;
@@ -1100,6 +1120,7 @@
           <span class="copy-email-text">EMAIL: twk0672005@gmail.com</span>
           <span class="copy-email-hint" aria-hidden="true">Click to copy</span>
         </button>
+        <p class="built-with">Built with <a href="https://github.com/twk0672005/sentence-to-site" target="_blank" rel="noopener">sentence-to-site</a> — one sentence in, a verified website out.</p>
         <div class="signature-line" aria-label="ORBITAL design principles">
           <span>World before interface</span>
           <span>Light before path</span>
